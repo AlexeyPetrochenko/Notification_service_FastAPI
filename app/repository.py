@@ -1,58 +1,82 @@
 from fastapi import HTTPException
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+import datetime as dt
+from typing import Sequence
 
-from .models import CampaignOrm
-from .schemes import CampaignAddSh, CampaignGetSh
-
-
-def create_campaign(db: Session, campaign: CampaignAddSh) -> int:
-    data_campaign = campaign.model_dump()
-    db_campaign = CampaignOrm(**data_campaign)
-    db.add(db_campaign)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Campaign name  already exists")
-    db.refresh(db_campaign)
-    return db_campaign.id
+from app.models import CampaignOrm, StatusCampaign
+from app.db import AsyncSessionLocal
 
 
-def get_campaign(db: Session, id: int) -> CampaignGetSh:
-    query = select(CampaignOrm).where(CampaignOrm.id == id)
-    campaign_model = db.scalars(query).first()
-    if campaign_model is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    return CampaignGetSh.from_orm(campaign_model)
+async def create_campaign(name: str, content: str, status: StatusCampaign, launch_date: dt.datetime) -> CampaignOrm:
+    async with AsyncSessionLocal() as session:
+        campaign_orm = CampaignOrm(name=name, content=content, status=status, launch_date=launch_date)
+        session.add(campaign_orm)
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            raise HTTPException(status_code=400, detail="Campaign name  already exists")
+        
+        await session.refresh(campaign_orm)
+        return campaign_orm
 
 
-def delete_campaign(db: Session, id: int) -> int:
-    query = select(CampaignOrm).where(CampaignOrm.id == id)
-    campaign_model = db.scalars(query).first()
-    if campaign_model is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    db.delete(campaign_model)
-    db.commit()
-    return id
+async def get_all_campaigns() -> Sequence[CampaignOrm]:
+    async with AsyncSessionLocal() as session:
+        query = select(CampaignOrm)
+        result = await session.execute(query)
+        campaigns_orm = result.scalars().all()
+        return campaigns_orm
 
 
-def get_all_campaigns(db: Session) -> list[CampaignGetSh]:
-    query = select(CampaignOrm)
-    campaigns_models = db.scalars(query).all()
-    campaigns = [CampaignGetSh.from_orm(campaign) for campaign in campaigns_models]
-    return campaigns
+async def get_campaign(campaign_id: int) -> CampaignOrm:
+    async with AsyncSessionLocal() as session:
+        query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
+        result = await session.execute(query)
+        campaign_orm = result.scalars().first()
+        if campaign_orm is None:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        return campaign_orm
 
 
-def make_changes_in_campaign(db: Session, id: int, campaign_update: CampaignAddSh) -> CampaignGetSh:
-    query = select(CampaignOrm).where(CampaignOrm.id == id)
-    campaign_model = db.scalars(query).first()
-    if campaign_model is None:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    for field, new_value in campaign_update.model_dump().items():
-        setattr(campaign_model, field, new_value)
-    db.add(campaign_model)
-    db.commit()
-    db.refresh(campaign_model)
-    return CampaignGetSh.from_orm(campaign_model)
+async def update_campaign(campaign_id: int, name: str, content: str, status: StatusCampaign, launch_date: dt.datetime) -> CampaignOrm:
+    async with AsyncSessionLocal() as session: 
+        query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
+        result = await session.execute(query)
+        campaign_orm = result.scalars().first()
+        if campaign_orm is None:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+    
+# TODO @AlexP: Как лучше обновить данные модели
+        campaign_orm.name = name
+        campaign_orm.content = content
+        campaign_orm.status = status
+        campaign_orm.launch_date = launch_date
+        
+        session.add(campaign_orm)
+        try:
+            await session.commit()            
+        except IntegrityError:
+            await session.rollback()
+            raise HTTPException(status_code=400, detail="Campaign name  already exists")
+            
+        await session.refresh(campaign_orm)
+        return campaign_orm
+        
+
+async def delete_campaign(campaign_id: int) -> int:
+    async with AsyncSessionLocal() as session:
+        query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
+        result = await session.execute(query)
+        campaign_orm = result.scalars().first()
+        if campaign_orm is None:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        await session.delete(campaign_orm)
+        await session.commit()
+        return campaign_id
+
+
+
+
+

@@ -1,22 +1,19 @@
 from fastapi import FastAPI
-
-from app.routers import router as compaign_router
-from app.db import BaseOrm, sync_engine
-from app.models import CampaignOrm
-
-
-app = FastAPI()
-
-app.include_router(compaign_router)
+from typing import Any
+from contextlib import asynccontextmanager
+from app.routers import router as campaign_router
+from app.db import BaseOrm, sync_engine, create_tables, delete_tables
 
 
-@app.on_event('startup')
-def create_tables() -> None:
-    BaseOrm.metadata.create_all(bind=sync_engine)
-    print('База создана')
-    
-    
-@app.on_event('shutdown')
-def drop_tables() -> None:
-    BaseOrm.metadata.drop_all(bind=sync_engine)
-    print('База очищена')
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> Any:
+    await create_tables()
+    print("База готова")
+    yield
+    await delete_tables()
+    print("База очищена")
+
+app = FastAPI(lifespan=lifespan)
+
+
+app.include_router(campaign_router)
