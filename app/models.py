@@ -22,8 +22,8 @@ class CampaignOrm(BaseOrm):
     status: Mapped[StatusCampaign]
     launch_date: Mapped[datetime.datetime]
     
-    date_created: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
-    date_updated: Mapped[datetime.datetime] = mapped_column(
+    created_at: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(), 
         onupdate=datetime.datetime.now
     )
