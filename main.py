@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from typing import Any
 from contextlib import asynccontextmanager
 from app.routers import router as campaign_router
-from app.db import BaseOrm, sync_engine, create_tables, delete_tables
+from app.db import create_tables, delete_tables
 
 
 @asynccontextmanager

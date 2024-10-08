@@ -4,7 +4,7 @@ import datetime
     
     
 # TODO @AlexP: Оставляем только ее
-class CampaignSC(BaseModel):
+class Campaign(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     campaign_id: int
