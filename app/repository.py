@@ -8,13 +8,20 @@ from dataclasses import dataclass
 
 from app.models import CampaignOrm, StatusCampaign
 
+
 # TODO @AlexP: Где обрабатывать данные о преданном времени запуска,(проверять что запуск будет не в прошлом)
 # или статус кампаний, в pydantic-схемах прописать условие для поля, или в бизнес логике?
 @dataclass
 class CampaignRepository:
     new_session: Callable[[], AsyncSession]
     
-    async def create_campaign(self, name: str, content: str, status: StatusCampaign, launch_date: dt.datetime) -> CampaignOrm:
+    async def create_campaign(
+        self, 
+        name: str, 
+        content: str, 
+        status: StatusCampaign, 
+        launch_date: dt.datetime
+    ) -> CampaignOrm:
         async with self.new_session() as session:
             campaign_orm = CampaignOrm(name=name, content=content, status=status, launch_date=launch_date)
             session.add(campaign_orm)
@@ -42,7 +49,14 @@ class CampaignRepository:
                 raise HTTPException(status_code=404, detail="Campaign not found")
             return campaign_orm
 
-    async def update_campaign(self, campaign_id: int, name: str, content: str, status: StatusCampaign, launch_date: dt.datetime) -> CampaignOrm:
+    async def update_campaign(
+        self, 
+        campaign_id: int, 
+        name: str, 
+        content: str, 
+        status: StatusCampaign, 
+        launch_date: dt.datetime
+    ) -> CampaignOrm:
         async with self.new_session() as session: 
             query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
             result = await session.execute(query)
@@ -58,7 +72,7 @@ class CampaignRepository:
                 await session.commit()            
             except IntegrityError:
                 await session.rollback()
-                raise HTTPException(status_code=400, detail="Campaign name  already exists")
+                raise HTTPException(status_code=400, detail="Campaign name already exists")
             await session.refresh(campaign_orm)
             return campaign_orm
             

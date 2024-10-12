@@ -1,12 +1,14 @@
 import pytest
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
-import datetime as dt
+from datetime import datetime
 
 from app.config import TEST_ASYNC_DATABASE_URL
 from app.db import BaseOrm
 from app.repository import CampaignRepository
-from app.models import StatusCampaign
+from app.models import StatusCampaign, CampaignOrm
+from main import app
 
 
 engine_test = create_async_engine(url=TEST_ASYNC_DATABASE_URL, poolclass=NullPool)
@@ -40,7 +42,7 @@ async def campaign_data_factory():
         name: str = 'Black Friday', 
         content: str = 'Discounts up to 50%', 
         status: StatusCampaign = StatusCampaign.CREATED, 
-        launch_date: dt.datetime = dt.datetime(2024, 11, 1, 12, 0, 0)
+        launch_date: datetime | str = datetime(2024, 11, 1, 12, 0, 0)
     ):
         return {
             'name': name, 
@@ -51,7 +53,19 @@ async def campaign_data_factory():
     return function_create_data
 
 
-# @pytest.fixture
-# async def async_client():
-#     async with AsyncClient(app=app, base_url='http://test') as ac:
-#         yield ac
+@pytest.fixture
+async def make_campaign():
+    async def function_make_campaign(name: str, content: str, status: StatusCampaign, launch_date: datetime):
+        async with TestSessionLocal() as session:
+            new_campaign = CampaignOrm(name=name, content=content, status=status, launch_date=launch_date)
+            session.add(new_campaign)
+            await session.commit()
+            await session.refresh(new_campaign)
+            return new_campaign
+    return function_make_campaign
+    
+
+@pytest.fixture
+async def async_client():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test/campaigns') as ac:
+        yield ac

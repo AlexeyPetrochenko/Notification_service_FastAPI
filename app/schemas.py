@@ -2,8 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from .models import StatusCampaign
 import datetime
     
-    
-# TODO @AlexP: Оставляем только ее
+
 class Campaign(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
@@ -13,5 +12,5 @@ class Campaign(BaseModel):
     status: StatusCampaign
     launch_date: datetime.datetime
 
-    date_created: datetime.datetime
-    date_updated: datetime.datetime
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
