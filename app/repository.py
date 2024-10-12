@@ -8,7 +8,8 @@ from dataclasses import dataclass
 
 from app.models import CampaignOrm, StatusCampaign
 
-
+# TODO @AlexP: Где обрабатывать данные о преданном времени запуска,(проверять что запуск будет не в прошлом)
+# или статус кампаний, в pydantic-схемах прописать условие для поля, или в бизнес логике?
 @dataclass
 class CampaignRepository:
     new_session: Callable[[], AsyncSession]
