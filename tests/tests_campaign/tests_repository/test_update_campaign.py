@@ -1,17 +1,19 @@
 import pytest
 from fastapi import HTTPException
 from datetime import datetime
-from app.models import StatusCampaign
+from sqlalchemy import select
+
+from app.models import StatusCampaign, CampaignOrm
 
 
-async def test__update_campaign__data_changed_successfully(prepare_database, campaign_repository):
+async def test__update_campaign__fields_changed_successfully(prepare_database, campaign_repository, make_campaign, test_session):
     data = {
         'name': 'Name',
         'content': 'Content',
         'status': StatusCampaign.CREATED,
         'launch_date': datetime(2024, 11, 1, 12, 0, 0)
     }
-    new_campaign = await campaign_repository.create_campaign(**data)
+    new_campaign = await make_campaign(**data)
     
     update_campaign = await campaign_repository.update_campaign(
         campaign_id=new_campaign.campaign_id,
@@ -20,7 +22,9 @@ async def test__update_campaign__data_changed_successfully(prepare_database, cam
         status=StatusCampaign.DONE,
         launch_date=datetime(2025, 10, 2, 10, 0, 0)
     )
-    campaign = await campaign_repository.get_campaign(new_campaign.campaign_id)
+    query = select(CampaignOrm).where(CampaignOrm.campaign_id == new_campaign.campaign_id)
+    result = await test_session.execute(query)
+    campaign = result.scalars().first()
     
     assert update_campaign.name == campaign.name
     assert update_campaign.content == campaign.content
@@ -28,8 +32,8 @@ async def test__update_campaign__data_changed_successfully(prepare_database, cam
     assert update_campaign.launch_date == campaign.launch_date
 
 
-async def test__update_campaign__updated_date_changed(prepare_database, campaign_repository, campaign_data_factory):
-    new_campaign = await campaign_repository.create_campaign(**campaign_data_factory(name='Name'))
+async def test__update_campaign__updated_date_changed(prepare_database, campaign_repository, campaign_data_factory, make_campaign):
+    new_campaign = await make_campaign(**campaign_data_factory(name='Name'))
     
     updated_campaign = await campaign_repository.update_campaign(
         new_campaign.campaign_id,
@@ -54,7 +58,7 @@ async def test__update_campaign__exception_campaign_name_already_exists(
     campaign_data_factory
 ):
     first_campaign = await campaign_repository.create_campaign(**campaign_data_factory(name='First'))
-    second_campaign = await campaign_repository.create_campaign(**campaign_data_factory(name='Second'))
+    await campaign_repository.create_campaign(**campaign_data_factory(name='Second'))
     
     with pytest.raises(HTTPException):
         await campaign_repository.update_campaign(first_campaign.campaign_id, **campaign_data_factory(name='Second'))

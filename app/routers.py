@@ -5,15 +5,14 @@ import datetime
 from app.models import StatusCampaign
 from app.schemas import Campaign
 from app.repository import CampaignRepository
-from app.db import AsyncSessionLocal 
+from app.db import AsyncSessionLocal
 
 
 router = APIRouter(prefix='/campaigns')
 campaign_repository = CampaignRepository(AsyncSessionLocal)
 
-# TODO @AlexP: Добавить статус коды для роутов
 
-@router.post('/')
+@router.post('/', status_code=201)
 async def add(
     name: t.Annotated[str, Body(examples=['Оповещение по черной пятнице'])],
     content: t.Annotated[str, Body(examples=['Только в эту пятницу - скидки на все товары 30%!'])],
@@ -36,6 +35,8 @@ async def get(campaign_id: int) -> Campaign:
     return Campaign.model_validate(campaign)
 
 
+# TODO @ALexP: Или использовать метод patch
+# TODO @AlexP: Продумать какие поля можно редактировать
 @router.put('/{campaign_id}')
 async def update(
     campaign_id: t.Annotated[int, Path()],
@@ -48,8 +49,6 @@ async def update(
     return Campaign.model_validate(updated_campaign_orm)
 
 
-# TODO @AlexP: Что возвращать при удалении кампании
-@router.delete('/{campaign_id}')
-async def delete(campaign_id: int) -> int:
-    campaign_id = await campaign_repository.delete_campaign(campaign_id)
-    return campaign_id
+@router.delete('/{campaign_id}', status_code=204)
+async def delete(campaign_id: int) -> None:
+    await campaign_repository.delete_campaign(campaign_id)
