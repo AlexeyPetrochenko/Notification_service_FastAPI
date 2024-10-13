@@ -4,14 +4,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from datetime import datetime
 
-from app.config import TEST_ASYNC_DATABASE_URL
+from app.config import test_settings
 from app.db import BaseOrm
 from app.repository import CampaignRepository
 from app.models import StatusCampaign, CampaignOrm
 from main import app
 
 
-engine_test = create_async_engine(url=TEST_ASYNC_DATABASE_URL, poolclass=NullPool)
+engine_test = create_async_engine(url=test_settings.ASYNC_DATABASE_URL, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(bind=engine_test)
 BaseOrm.bind = engine_test
 
