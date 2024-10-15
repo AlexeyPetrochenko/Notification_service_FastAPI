@@ -34,18 +34,14 @@ class RecipientRepository:
 
     async def get_recipient(self, recipient_id: int) -> RecipientOrm:
         async with self.session_maker() as session:
-            query = select(RecipientOrm).where(RecipientOrm.recipient_id == recipient_id)
-            result = await session.execute(query)
-            recipient = result.scalars().first()
+            recipient = await session.get(RecipientOrm, recipient_id)
             if recipient is None:
                 raise HTTPException(status_code=404, detail='Recipient not found')
             return recipient
 
     async def update_recipient(self, recipient_id: int, name: str, lastname: str, age: int, contact_email: EmailStr) -> RecipientOrm:
         async with self.session_maker() as session:
-            query = select(RecipientOrm).where(RecipientOrm.recipient_id == recipient_id)
-            result = await session.execute(query)
-            recipient = result.scalars().first()
+            recipient = await session.get(RecipientOrm, recipient_id)
             if recipient is None:
                 raise HTTPException(status_code=404, detail='Recipient not found')
             recipient.name = name
@@ -64,9 +60,7 @@ class RecipientRepository:
 
     async def delete_recipient(self, recipient_id: int) -> None:
         async with self.session_maker() as session:
-            query = select(RecipientOrm).where(RecipientOrm.recipient_id == recipient_id)
-            result = await session.execute(query)
-            recipient = result.scalars().first()
+            recipient = await session.get(RecipientOrm, recipient_id)
             if recipient is None:
                 raise HTTPException(status_code=404, detail='A recipient with this email already exists')
             await session.delete(recipient)
