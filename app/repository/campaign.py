@@ -42,12 +42,10 @@ class CampaignRepository:
 
     async def get_campaign(self, campaign_id: int) -> CampaignOrm:
         async with self.new_session() as session:
-            query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
-            result = await session.execute(query)
-            campaign_orm = result.scalars().first()
-            if campaign_orm is None:
+            campaign = await session.get(CampaignOrm, campaign_id)
+            if campaign is None:
                 raise HTTPException(status_code=404, detail="Campaign not found")
-            return campaign_orm
+            return campaign
 
     async def update_campaign(
         self, 
@@ -58,9 +56,7 @@ class CampaignRepository:
         launch_date: dt.datetime
     ) -> CampaignOrm:
         async with self.new_session() as session: 
-            query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
-            result = await session.execute(query)
-            campaign_orm = result.scalars().first()
+            campaign_orm = await session.get(CampaignOrm, campaign_id)
             if campaign_orm is None:
                 raise HTTPException(status_code=404, detail="Campaign not found")
             campaign_orm.name = name
@@ -78,9 +74,7 @@ class CampaignRepository:
             
     async def delete_campaign(self, campaign_id: int) -> int:
         async with self.new_session() as session:
-            query = select(CampaignOrm).where(CampaignOrm.campaign_id == campaign_id)
-            result = await session.execute(query)
-            campaign_orm = result.scalars().first()
+            campaign_orm = await session.get(CampaignOrm, campaign_id)
             if campaign_orm is None:
                 raise HTTPException(status_code=404, detail="Campaign not found")
             await session.delete(campaign_orm)

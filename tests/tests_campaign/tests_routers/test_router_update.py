@@ -13,7 +13,7 @@ async def test__update__success_update_campaign(mocker, async_client, campaign_d
         created_at=datetime(2024, 12, 10),
         updated_at=datetime(2024, 12, 11)
     )
-    mocker.patch('app.repository.CampaignRepository.update_campaign', return_value=mock_data_after_update)
+    mocker.patch('app.repository.campaign.CampaignRepository.update_campaign', return_value=mock_data_after_update)
     
     response = await async_client.put('/1', json={
         'name': 'Update Name',

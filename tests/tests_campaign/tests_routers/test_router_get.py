@@ -13,7 +13,7 @@ async def test__get__api_get_returns_correct_data(async_client, mocker):
         created_at=datetime(2024, 10, 7, 14, 0, 0).isoformat(),
         updated_at=datetime(2024, 10, 7, 14, 0, 0).isoformat()
     )
-    mocker.patch('app.repository.CampaignRepository.get_campaign', return_value=mock_campaign_data)
+    mocker.patch('app.repository.campaign.CampaignRepository.get_campaign', return_value=mock_campaign_data)
     
     response = await async_client.get('/1')
     json_response = response.json()
@@ -29,7 +29,7 @@ async def test__get__api_get_returns_correct_data(async_client, mocker):
 
 async def test__get__exception_then_campaign_not_found(async_client, mocker):
     mocker.patch(
-        'app.repository.CampaignRepository.create_campaign',
+        'app.repository.campaign.CampaignRepository.create_campaign',
         side_effect=HTTPException(status_code=404, detail="Campaign not found")
     )
     

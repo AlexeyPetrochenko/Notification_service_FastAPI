@@ -18,7 +18,7 @@ async def test__get_all__returns_corrected_status_code(async_client, mocker, cam
             updated_at=datetime(2024, 12, 12)
         )
     ]
-    mocker.patch('app.repository.CampaignRepository.get_all_campaigns', return_value=campaigns_returned_mock)
+    mocker.patch('app.repository.campaign.CampaignRepository.get_all_campaigns', return_value=campaigns_returned_mock)
     
     response = await async_client.get('/')
     
@@ -26,7 +26,7 @@ async def test__get_all__returns_corrected_status_code(async_client, mocker, cam
     
 
 async def test__get_all_status_code_when_empty_list_campaigns(mocker, async_client):
-    mocker.patch('app.repository.CampaignRepository.get_all_campaigns', return_value=[])
+    mocker.patch('app.repository.campaign.CampaignRepository.get_all_campaigns', return_value=[])
     
     response = await async_client.get('/')
     

@@ -4,7 +4,7 @@ import datetime
 
 from app.models import StatusCampaign
 from app.schemas import Campaign
-from app.repository import CampaignRepository
+from app.repository.campaign import CampaignRepository
 from app.db import AsyncSessionLocal
 
 
@@ -45,8 +45,8 @@ async def update(
     status: t.Annotated[StatusCampaign, Body()],
     launch_date: t.Annotated[datetime.datetime, Body()]
 ) -> Campaign:
-    updated_campaign_orm = await campaign_repository.update_campaign(campaign_id, name, content, status, launch_date) 
-    return Campaign.model_validate(updated_campaign_orm)
+    updated_campaign = await campaign_repository.update_campaign(campaign_id, name, content, status, launch_date) 
+    return Campaign.model_validate(updated_campaign)
 
 
 @router.delete('/{campaign_id}', status_code=204)

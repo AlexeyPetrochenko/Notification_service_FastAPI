@@ -6,7 +6,8 @@ from datetime import datetime
 
 from app.config import test_settings
 from app.db import BaseOrm
-from app.repository import CampaignRepository
+from app.repository.campaign import CampaignRepository
+from app.repository.recipient import RecipientRepository
 from app.models import StatusCampaign, CampaignOrm
 from main import app
 
@@ -34,6 +35,11 @@ async def test_session():
 @pytest.fixture
 async def campaign_repository():
     yield CampaignRepository(TestSessionLocal)
+    
+
+@pytest.fixture
+async def recipient_repository():
+    yield RecipientRepository(TestSessionLocal)
     
 
 @pytest.fixture
