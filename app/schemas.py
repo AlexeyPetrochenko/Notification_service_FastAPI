@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict
-from .models import StatusCampaign
+from pydantic import BaseModel, ConfigDict, EmailStr
+from app.models import StatusCampaign
 import datetime
     
 
@@ -14,3 +14,13 @@ class Campaign(BaseModel):
 
     created_at: datetime.datetime
     updated_at: datetime.datetime
+
+
+class Recipient(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    recipient_id: int
+    name: str
+    lastname: str
+    age: int
+    contact_email: EmailStr

@@ -14,7 +14,7 @@ class StatusCampaign(enum.StrEnum):
 
 
 class CampaignOrm(BaseOrm):
-    __tablename__ = 'campaign'
+    __tablename__ = 'campaigns'
     
     campaign_id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
@@ -27,3 +27,13 @@ class CampaignOrm(BaseOrm):
         server_default=func.now(), 
         onupdate=datetime.datetime.now
     )
+
+
+class RecipientOrm(BaseOrm):
+    __tablename__ = 'recipients'
+    
+    recipient_id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    lastname: Mapped[str]
+    age: Mapped[int]
+    contact_email: Mapped[str] = mapped_column(unique=True)

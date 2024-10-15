@@ -1,6 +1,7 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
+
 from app.models import CampaignOrm
 
 
