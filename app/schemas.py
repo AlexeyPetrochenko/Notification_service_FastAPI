@@ -33,3 +33,9 @@ class Notification(BaseModel):
     status: StatusNotification
     campaign_id: int
     recipient_id: int
+
+
+class NotificationCreate(BaseModel):
+    status: StatusNotification = StatusNotification.PENDING
+    campaign_id: int
+    recipient_id: int
