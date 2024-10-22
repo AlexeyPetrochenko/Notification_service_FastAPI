@@ -1,0 +1,20 @@
+version: '3.5'
+
+services:
+  db:
+    image: postgres:17.0-alpine3.20
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    ports:
+      - "5433:5432"
+    
+  test_db:
+    image: postgres:17.0-alpine3.20
+    environment:
+      POSTGRES_DB: ${TEST_DB_NAME}
+      POSTGRES_USER: ${TEST_DB_USER}
+      POSTGRES_PASSWORD: ${TEST_DB_PASS}
+    ports:
+      - "5434:5432"

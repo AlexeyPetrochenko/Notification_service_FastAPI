@@ -1,22 +1,27 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from dataclasses import dataclass
 import typing as t
 from fastapi import HTTPException
 
 from app.models import StatusNotification, NotificationOrm
-from app.schemas import NotificationCreate
 
 
 @dataclass
 class NotificationRepository:
     session_maker: t.Callable[[], AsyncSession]
     
-    async def create_notification(self, notification_data: NotificationCreate) -> NotificationOrm:
+    async def create_notification(
+        self, status: StatusNotification, campaign_id: int, recipient_id: int
+    ) -> NotificationOrm:
         async with self.session_maker() as session:
-            notification = NotificationOrm(**notification_data.model_dump())
+            notification = NotificationOrm(status=status, campaign_id=campaign_id, recipient_id=recipient_id)
             session.add(notification)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                raise HTTPException(status_code=409, detail='Database data conflict, unable to create notification')
             await session.refresh(notification)
             return notification
 
@@ -51,4 +56,3 @@ class NotificationRepository:
             if notification is None:
                 raise HTTPException(status_code=404, detail='Notification not found')
             await session.delete(notification)
-            

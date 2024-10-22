@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from app.models import RecipientOrm
 
 
-async def test__create_recipient__entry_created_successfully(prepare_database, recipient_repository, test_session):
+async def test__create_recipient__entry_created_successfully(prepare_database, recipient_repository, test_session):  # noqa: U100
     new_recipient = await recipient_repository.create_recipient(
         name='Firstname',
         lastname='Lastname',
@@ -20,7 +20,7 @@ async def test__create_recipient__entry_created_successfully(prepare_database, r
     assert recipient is not None
     
 
-async def test__create_recipient__all_fields_created(prepare_database, recipient_repository, test_session):
+async def test__create_recipient__all_fields_created(prepare_database, recipient_repository, test_session):  # noqa: U100
     data = {'name': 'Firstname', 'lastname': 'Lastname', 'age': 34, 'contact_email': 'test@fake.com'}
     
     new_recipient = await recipient_repository.create_recipient(**data)
@@ -34,7 +34,7 @@ async def test__create_recipient__all_fields_created(prepare_database, recipient
     assert recipient.contact_email == data['contact_email']
 
 
-async def test__create_recipient__exception_when_field_contact_email_with_taken(prepare_database, recipient_repository):
+async def test__create_recipient__exception_when_field_contact_email_with_taken(prepare_database, recipient_repository):  # noqa: U100
     data = {'name': 'Firstname', 'lastname': 'Lastname', 'age': 34, 'contact_email': 'test@fake.com'}
     await recipient_repository.create_recipient(**data)
     
