@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Path
+from fastapi import APIRouter, Body, Path, HTTPException
 import typing as t
 import datetime
 
@@ -19,6 +19,8 @@ async def add(
     status: t.Annotated[StatusCampaign, Body()],
     launch_date: t.Annotated[datetime.datetime, Body(examples=['2024-10-04T16:05:16'])],
 ) -> Campaign:
+    if launch_date < datetime.datetime.now(): 
+        raise HTTPException(status_code=422, detail='Launch date must be in the future')
     campaign = await campaign_repository.create_campaign(name, content, status, launch_date)
     return Campaign.model_validate(campaign)
 
@@ -35,20 +37,22 @@ async def get(campaign_id: int) -> Campaign:
     return Campaign.model_validate(campaign)
 
 
-# TODO @ALexP: Или использовать метод patch
-# TODO @AlexP: Продумать какие поля можно редактировать
 @router.put('/{campaign_id}')
 async def update(
     campaign_id: t.Annotated[int, Path()],
     name: t.Annotated[str, Body()],
     content: t.Annotated[str, Body()],
-    status: t.Annotated[StatusCampaign, Body()],
     launch_date: t.Annotated[datetime.datetime, Body()]
 ) -> Campaign:
-    updated_campaign = await campaign_repository.update_campaign(campaign_id, name, content, status, launch_date) 
+    updated_campaign = await campaign_repository.update_campaign(campaign_id, name, content, launch_date) 
     return Campaign.model_validate(updated_campaign)
 
 
 @router.delete('/{campaign_id}', status_code=204)
 async def delete(campaign_id: int) -> None:
     await campaign_repository.delete_campaign(campaign_id)
+
+
+@router.post('/{campaign_id}/run', status_code=204)
+async def run(campaign_id: int) -> None:
+    await campaign_repository.run_campaign(campaign_id)

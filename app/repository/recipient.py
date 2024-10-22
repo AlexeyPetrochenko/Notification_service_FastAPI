@@ -39,7 +39,9 @@ class RecipientRepository:
                 raise HTTPException(status_code=404, detail='Recipient not found')
             return recipient
 
-    async def update_recipient(self, recipient_id: int, name: str, lastname: str, age: int, contact_email: EmailStr) -> RecipientOrm:
+    async def update_recipient(
+        self, recipient_id: int, name: str, lastname: str, age: int, contact_email: EmailStr
+    ) -> RecipientOrm:
         async with self.session_maker() as session:
             recipient = await session.get(RecipientOrm, recipient_id)
             if recipient is None:

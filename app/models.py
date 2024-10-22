@@ -33,8 +33,17 @@ class CampaignOrm(BaseOrm):
         server_default=func.now(), 
         onupdate=datetime.datetime.now
     )
-    notifications: Mapped[list['NotificationOrm']] = relationship()
     
+    notifications: Mapped[list['NotificationOrm']] = relationship(
+        "NotificationOrm",
+        back_populates="campaign", 
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+    
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}, id={self.campaign_id}, status={self.status}>'
+
 
 class RecipientOrm(BaseOrm):
     __tablename__ = 'recipients'
@@ -45,7 +54,12 @@ class RecipientOrm(BaseOrm):
     age: Mapped[int]
     contact_email: Mapped[str] = mapped_column(unique=True)
 
-    notifications: Mapped[list['NotificationOrm']] = relationship()
+    notifications: Mapped[list['NotificationOrm']] = relationship(
+        "NotificationOrm",
+        back_populates="recipient",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
     
 
 class NotificationOrm(BaseOrm):

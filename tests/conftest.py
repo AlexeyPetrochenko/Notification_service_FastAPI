@@ -3,6 +3,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from datetime import datetime
+import faker
 
 from app.config import test_settings
 from app.db import BaseOrm
@@ -12,6 +13,7 @@ from app.models import StatusCampaign, CampaignOrm
 from main import app
 
 
+fake = faker.Faker()
 engine_test = create_async_engine(url=test_settings.ASYNC_DATABASE_URL, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(bind=engine_test)
 BaseOrm.bind = engine_test
@@ -43,12 +45,12 @@ async def recipient_repository():
     
 
 @pytest.fixture
-async def campaign_data_factory():
+async def make_campaign():
     def function_create_data(
-        name: str = 'Black Friday', 
-        content: str = 'Discounts up to 50%', 
+        name: str = fake.catch_phrase(), 
+        content: str = fake.text(max_nb_chars=100), 
         status: StatusCampaign = StatusCampaign.CREATED, 
-        launch_date: datetime | str = datetime(2024, 11, 1, 12, 0, 0)
+        launch_date: datetime | str = fake.date_time_between(start_date='now', end_date='+30d')
     ):
         return {
             'name': name, 

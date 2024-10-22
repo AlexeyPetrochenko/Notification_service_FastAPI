@@ -13,6 +13,7 @@ class Settings:
     DB_HOST: Optional[str]
     DB_PORT: Optional[str]
     DB_NAME: Optional[str]
+    APP_HOST: Optional[str] = None
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
@@ -28,7 +29,8 @@ settings = Settings(
     DB_PASS=os.getenv('DB_PASS'),
     DB_HOST=os.getenv('DB_HOST'),
     DB_PORT=os.getenv('DB_PORT'),
-    DB_NAME=os.getenv('DB_NAME')
+    DB_NAME=os.getenv('DB_NAME'),
+    APP_HOST=os.getenv('DEV_HOST')
 )
 
 test_settings = Settings(
@@ -36,5 +38,5 @@ test_settings = Settings(
     os.getenv('TEST_DB_PASS'),
     os.getenv('TEST_DB_HOST'),
     os.getenv('TEST_DB_PORT'),
-    os.getenv('TEST_DB_NAME')
+    os.getenv('TEST_DB_NAME'),
 )

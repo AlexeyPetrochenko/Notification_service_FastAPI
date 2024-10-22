@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Body, Path, Depends
+from fastapi import APIRouter, Body, Path
 import typing as t
 
 from app.models import StatusNotification
-from app.schemas import Notification, NotificationCreate
+from app.schemas import Notification
 from app.repository.notification import NotificationRepository 
 from app.db import AsyncSessionLocal
-from app.dependencies import presence_in_database
 
 
 router = APIRouter(prefix='/notifications')
@@ -13,8 +12,12 @@ notification_repository = NotificationRepository(AsyncSessionLocal)
 
 
 @router.post('/', status_code=201)
-async def add(notification_data: NotificationCreate = Depends(presence_in_database)) -> Notification:
-    notification = await notification_repository.create_notification(notification_data)
+async def add(
+    status: t.Annotated[StatusNotification, Body(examples=['pending'])],
+    campaign_id: t.Annotated[int, Body(examples=['1'])],
+    recipient_id: t.Annotated[int, Body(examples=['4'])]
+) -> Notification:
+    notification = await notification_repository.create_notification(status, campaign_id, recipient_id)
     return Notification.model_validate(notification)
 
 
@@ -30,8 +33,8 @@ async def get(notification_id: int) -> Notification:
     return Notification.model_validate(notification)
 
 
-@router.put('/{notification_id}')
-async def update(
+@router.post('/{notification_id}/run')
+async def run(
     notification_id: t.Annotated[int, Path()],
     status: t.Annotated[StatusNotification, Body(embed=True)]
 ) -> Notification:

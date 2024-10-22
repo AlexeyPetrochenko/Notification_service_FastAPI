@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.drop_table('campaign')
-    op.execute('DROP TYPE IF EXISTS statuscampaign;')
+    # op.execute('DROP TYPE IF EXISTS statuscampaign;')
     
     op.create_table('campaigns',
     sa.Column('campaign_id', sa.Integer(), nullable=False),
