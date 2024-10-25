@@ -2,7 +2,6 @@ from fastapi import APIRouter, Body, Path, HTTPException
 import typing as t
 import datetime
 
-from app.models import StatusCampaign
 from app.schemas import Campaign
 from app.repository.campaign import CampaignRepository
 from app.db import AsyncSessionLocal
@@ -16,15 +15,14 @@ campaign_repository = CampaignRepository(AsyncSessionLocal)
 async def add(
     name: t.Annotated[str, Body(examples=['Оповещение по черной пятнице'])],
     content: t.Annotated[str, Body(examples=['Только в эту пятницу - скидки на все товары 30%!'])],
-    status: t.Annotated[StatusCampaign, Body()],
     launch_date: t.Annotated[datetime.datetime, Body(examples=['2024-10-04T16:05:16'])],
 ) -> Campaign:
     if launch_date < datetime.datetime.now(): 
         raise HTTPException(status_code=422, detail='Launch date must be in the future')
-    campaign = await campaign_repository.create_campaign(name, content, status, launch_date)
+    campaign = await campaign_repository.create_campaign(name, content, launch_date)
     return Campaign.model_validate(campaign)
 
-    
+
 @router.get('/')
 async def get_all() -> list[Campaign]:
     campaigns = await campaign_repository.get_all_campaigns()
@@ -44,6 +42,8 @@ async def update(
     content: t.Annotated[str, Body()],
     launch_date: t.Annotated[datetime.datetime, Body()]
 ) -> Campaign:
+    if launch_date < datetime.datetime.now():
+        raise HTTPException(status_code=422, detail='Launch date must be in the future')
     updated_campaign = await campaign_repository.update_campaign(campaign_id, name, content, launch_date) 
     return Campaign.model_validate(updated_campaign)
 

@@ -3,18 +3,13 @@ from sqlalchemy import select, and_
 from datetime import datetime
 from typing import Sequence, Coroutine
 import httpx
+from dataclasses import dataclass
 
 from app.db import AsyncSessionLocal
 from app.models import CampaignOrm, StatusCampaign, StatusNotification
-from app.repository.recipient import RecipientRepository
-from app.repository.notification import NotificationRepository
 from app.config import settings 
-
-
-recipient_repository = RecipientRepository(AsyncSessionLocal)
-notification_repository = NotificationRepository(AsyncSessionLocal)
-
-
+    
+    
 async def fetch_campaigns_to_launched() -> Sequence[CampaignOrm]:
     async with AsyncSessionLocal() as session:
         query = select(CampaignOrm).where(
@@ -70,8 +65,8 @@ async def campaign_worker() -> None:
             print(notifications)
             async with httpx.AsyncClient() as client:
                 await client.post(f'{settings.APP_HOST}/campaigns/{campaign_id}/run', json={})
-                
-        await asyncio.sleep(60)
+        print('CIRCLE')      
+        await asyncio.sleep(5)
 
 
 # TODO: Можно сделать запуск воркера вместе с приложение через lifespan
