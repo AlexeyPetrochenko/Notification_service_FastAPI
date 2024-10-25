@@ -13,11 +13,11 @@ from app.models import CampaignOrm, StatusCampaign
 class CampaignRepository:
     session_maker: Callable[[], AsyncSession]
     
-    async def create_campaign(
-        self, name: str, content: str, status: StatusCampaign, launch_date: dt.datetime
-    ) -> CampaignOrm:
+    async def create_campaign(self, name: str, content: str, launch_date: dt.datetime) -> CampaignOrm:
         async with self.session_maker() as session:
-            campaign_orm = CampaignOrm(name=name, content=content, status=status, launch_date=launch_date)
+            campaign_orm = CampaignOrm(
+                name=name, content=content, status=StatusCampaign.CREATED, launch_date=launch_date
+            )
             session.add(campaign_orm)
             try:
                 await session.commit()
@@ -48,6 +48,10 @@ class CampaignRepository:
             campaign_orm = await session.get(CampaignOrm, campaign_id)
             if campaign_orm is None:
                 raise HTTPException(status_code=404, detail="Campaign not found")
+            if campaign_orm.status != StatusCampaign.CREATED:
+                raise HTTPException(
+                    status_code=422, detail=f'Campaigns with {campaign_orm.status} status cannot be modified'
+                )
             campaign_orm.name = name
             campaign_orm.content = content
             campaign_orm.launch_date = launch_date
