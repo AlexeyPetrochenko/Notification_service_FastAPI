@@ -1,8 +1,8 @@
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-import datetime as dt
+from sqlalchemy import select, and_
+from datetime import datetime 
 from typing import Sequence, Callable
 from dataclasses import dataclass
 
@@ -13,7 +13,7 @@ from app.models import CampaignOrm, StatusCampaign
 class CampaignRepository:
     session_maker: Callable[[], AsyncSession]
     
-    async def create_campaign(self, name: str, content: str, launch_date: dt.datetime) -> CampaignOrm:
+    async def create_campaign(self, name: str, content: str, launch_date: datetime) -> CampaignOrm:
         async with self.session_maker() as session:
             campaign_orm = CampaignOrm(
                 name=name, content=content, status=StatusCampaign.CREATED, launch_date=launch_date
@@ -42,7 +42,7 @@ class CampaignRepository:
             return campaign
 
     async def update_campaign(
-        self, campaign_id: int, name: str, content: str, launch_date: dt.datetime
+        self, campaign_id: int, name: str, content: str, launch_date: datetime
     ) -> CampaignOrm:
         async with self.session_maker() as session: 
             campaign_orm = await session.get(CampaignOrm, campaign_id)
@@ -80,5 +80,24 @@ class CampaignRepository:
             if campaign is None:
                 raise HTTPException(status_code=404, detail="Campaign not found")
             campaign.status = StatusCampaign.RUNNING
-            campaign.launch_date = dt.datetime.now()
+            campaign.launch_date = datetime.now()
             await session.commit()
+
+    async def acquire_campaign(self) -> CampaignOrm:
+        async with self.session_maker() as session:
+            query = select(CampaignOrm).where(
+                and_(
+                    CampaignOrm.launch_date <= datetime.now(),
+                    CampaignOrm.status == StatusCampaign.CREATED
+                )
+            ).with_for_update()
+            result = await session.execute(query)
+            campaign = result.scalars().first()
+            if not campaign:
+                raise HTTPException(status_code=204, detail='No campaigns available for launch')
+            campaign.status = StatusCampaign.RUNNING
+            await session.commit()
+            await session.refresh(campaign)
+            return campaign
+        
+        
