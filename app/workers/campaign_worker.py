@@ -1,77 +1,92 @@
 import asyncio
-from sqlalchemy import select, and_
-from datetime import datetime
-from typing import Sequence, Coroutine
-import httpx
-from dataclasses import dataclass
+import logging
+import random
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Callable
 
 from app.db import AsyncSessionLocal
-from app.models import CampaignOrm, StatusCampaign, StatusNotification
-from app.config import settings 
-    
-    
-async def fetch_campaigns_to_launched() -> Sequence[CampaignOrm]:
-    async with AsyncSessionLocal() as session:
-        query = select(CampaignOrm).where(
-            and_(
-                CampaignOrm.launch_date <= datetime.now(),
-                CampaignOrm.status == StatusCampaign.CREATED
-            )
-        )
-        result = await session.execute(query)
-        campaigns = result.scalars().all()
-        return campaigns
+from app.config import load_from_env
+from app.schemas import Recipient, Campaign, Notification, StatusNotification
 
 
-async def fetch_recipients() -> list | None:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f'{settings.APP_HOST}/recipients/')
-        response.raise_for_status()
-        return response.json()
-      
-      
-async def create_notification(campaign_id: int, recipient_id: int) -> None:
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            url=f'{settings.APP_HOST}/notifications/',
+logging.basicConfig(filename='notification_sending.log', level=logging.INFO)
+
+
+class WorkerException(Exception):
+    def __init__(self, status_code: int, detail: str | None = None):
+        self.status_code = status_code
+        self.detail = detail
+
+
+class NotificationSendingWorker:
+    def __init__(self, session_maker: Callable[[], AsyncSession], client: AsyncClient) -> None:
+        self.session_maker = session_maker 
+        self.client = client
+        
+    async def get_pending_notifications(self, campaign: Campaign, recipients: list[Recipient]) -> list[Notification]:
+        recipients_id = [recipient.recipient_id for recipient in recipients]
+        response = await self.client.post(
+            '/notifications/add/many', 
             json={
-                'status': StatusNotification.PENDING,
-                'campaign_id': campaign_id,
-                'recipient_id': recipient_id
+                'campaign_id': campaign.campaign_id,
+                'recipients_id': recipients_id
             }
         )
-        response.raise_for_status() 
-        return response.json()
+        if response.status_code != 201:
+            raise WorkerException(status_code=422, detail='Failed to receive notifications')
+        return [Notification(**notification) for notification in response.json()]
+        
+    async def fetch_recipients(self) -> list[Recipient]:
+        response = await self.client.get('/recipients/')
+        if response.status_code != 200: 
+            raise WorkerException(status_code=422, detail='Failed to get recipients')
+        return [Recipient(**recipient) for recipient in response.json()]
+    
+    #TODO @AlexP: Как лучше, выдать исключение и обработать его выше (в even_loop) или возвращать None
+    async def acquire_campaign_for_launch(self) -> Campaign:
+        response = await self.client.post('/campaigns/acquire')
+        if response.status_code != 200:
+            # return None
+            raise WorkerException(status_code=422, detail='No campaigns available for launch')
+        return Campaign(**response.json())
 
-
-async def prepare_notifications(campaign: CampaignOrm) -> list:
-    recipients = await fetch_recipients()
-    campaign_id = campaign.campaign_id
-    tasks: list[Coroutine] = []
-    if recipients:
-        for recipient in recipients:
-            recipient_id = recipient['recipient_id']
-            tasks.append(create_notification(campaign_id, recipient_id))
-    return tasks
-
-
-async def campaign_worker() -> None:
-    while True:
-        campaigns = await fetch_campaigns_to_launched()
-        for campaign in campaigns:
-            campaign_id = campaign.campaign_id
-            tasks_notifications = await prepare_notifications(campaign)
-            notifications = await asyncio.gather(*tasks_notifications)
-            print(notifications)
-            async with httpx.AsyncClient() as client:
-                await client.post(f'{settings.APP_HOST}/campaigns/{campaign_id}/run', json={})
-        print('CIRCLE')      
-        await asyncio.sleep(5)
+    async def imitation_email_client(self, recipient: Recipient, content: str) -> StatusNotification:
+        status_code = random.choices(population=(250, 550), weights=[0.9, 0.1], k=1)[0]
+        if status_code != 250:
+            logging.info(f'Почта {recipient.contact_email} недействительна!')
+            return StatusNotification.UNDELIVERED
+        logging.info(f'{recipient.name} {recipient.lastname}-{content}')
+        return StatusNotification.SENT
+    
+    async def send_notification(self, recipient: Recipient, campaign: Campaign) -> None:
+        status_notification = await self.imitation_email_client(recipient, campaign.content)
+        await self.client.post(
+            f'/notifications/{campaign.campaign_id}/{recipient.recipient_id}/run',
+            json={'status': status_notification}
+        )
+            
+    async def run(self) -> None:
+        while True:
+            await asyncio.sleep(5)
+            try:  
+                campaign = await self.acquire_campaign_for_launch()
+                recipients = await self.fetch_recipients()
+                await self.get_pending_notifications(campaign, recipients)
+                for recipient in recipients:
+                    await self.send_notification(recipient, campaign)
+            except WorkerException:
+                pass 
 
 
 # TODO: Можно сделать запуск воркера вместе с приложение через lifespan
 if __name__ == '__main__':
+    config = load_from_env()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop=loop)
-    loop.create_task(campaign_worker())
+    client = AsyncClient(base_url=config.APP_URL)
+    worker = NotificationSendingWorker(AsyncSessionLocal, client)
+    loop.create_task(worker.run())
     loop.run_forever()
+
+        

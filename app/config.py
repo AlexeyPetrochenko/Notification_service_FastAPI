@@ -1,19 +1,18 @@
 import os
 from dotenv import load_dotenv
 from dataclasses import dataclass
-from typing import Optional
 
 load_dotenv()
 
 
 @dataclass
-class Settings:
-    DB_USER: Optional[str]
-    DB_PASS: Optional[str]
-    DB_HOST: Optional[str]
-    DB_PORT: Optional[str]
-    DB_NAME: Optional[str]
-    APP_HOST: Optional[str] = None
+class Config:
+    DB_USER: str
+    DB_PASS: str
+    DB_HOST: str
+    DB_PORT: str
+    DB_NAME: str
+    APP_URL: str
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
@@ -24,19 +23,24 @@ class Settings:
         return f'postgresql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}'
     
 
-settings = Settings(
-    DB_USER=os.getenv('DB_USER'),
-    DB_PASS=os.getenv('DB_PASS'),
-    DB_HOST=os.getenv('DB_HOST'),
-    DB_PORT=os.getenv('DB_PORT'),
-    DB_NAME=os.getenv('DB_NAME'),
-    APP_HOST=os.getenv('DEV_HOST')
-)
+def load_from_env() -> Config:
+    return Config(
+        DB_USER=os.environ['DB_USER'],
+        DB_PASS=os.environ['DB_PASS'],
+        DB_HOST=os.environ['DB_HOST'],
+        DB_PORT=os.environ['DB_PORT'],
+        DB_NAME=os.environ['DB_NAME'],
+        APP_URL=os.environ['APP_URL']
+    )
+# TODO @alex: для тестов тоже сделать функцию
 
-test_settings = Settings(
-    os.getenv('TEST_DB_USER'),
-    os.getenv('TEST_DB_PASS'),
-    os.getenv('TEST_DB_HOST'),
-    os.getenv('TEST_DB_PORT'),
-    os.getenv('TEST_DB_NAME'),
-)
+
+def load_from_env_for_tests() -> Config:
+    return Config(
+        DB_USER=os.environ['TEST_DB_USER'],
+        DB_PASS=os.environ['TEST_DB_PASS'],
+        DB_HOST=os.environ['TEST_DB_HOST'],
+        DB_PORT=os.environ['TEST_DB_PORT'],
+        DB_NAME=os.environ['TEST_DB_NAME'],
+        APP_URL=os.environ['APP_URL']
+    )

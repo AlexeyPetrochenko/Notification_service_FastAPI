@@ -6,15 +6,17 @@ from datetime import datetime
 import faker
 import random
 
-from app.config import test_settings
+from app.config import load_from_env_for_tests
 from app.db import BaseOrm
 from app.repository.campaign import CampaignRepository
 from app.repository.recipient import RecipientRepository
+from app.workers.campaign_worker import CampaignWorker
 from app.models import StatusCampaign, CampaignOrm
 from main import app
 
 
-engine_test = create_async_engine(url=test_settings.ASYNC_DATABASE_URL, poolclass=NullPool)
+test_config = load_from_env_for_tests()
+engine_test = create_async_engine(url=test_config.ASYNC_DATABASE_URL, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(bind=engine_test)
 BaseOrm.bind = engine_test
 fake = faker.Faker()
@@ -100,3 +102,8 @@ async def make_campaign_entity():
 async def async_client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
         yield ac
+
+
+@pytest.fixture
+async def campaign_worker():
+    yield CampaignWorker(TestSessionLocal, AsyncClient)

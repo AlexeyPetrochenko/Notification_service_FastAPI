@@ -56,3 +56,9 @@ async def delete(campaign_id: int) -> None:
 @router.post('/{campaign_id}/run', status_code=204)
 async def run(campaign_id: int) -> None:
     await campaign_repository.run_campaign(campaign_id)
+
+
+@router.post('/acquire')
+async def acquire_for_launch() -> Campaign:
+    campaign = await campaign_repository.acquire_campaign()
+    return Campaign.model_validate(campaign)

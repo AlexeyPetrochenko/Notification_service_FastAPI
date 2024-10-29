@@ -165,29 +165,19 @@ async def test__update_campaign__exception_campaign_name_already_exists(
         )
 
 
+@pytest.mark.parametrize('status_campaign', [StatusCampaign.RUNNING, StatusCampaign.FAILED, StatusCampaign.DONE])
 async def test__update_campaign__prohibit_updating_campaigns_with_a_status_other_than_created(
     prepare_database,  # noqa: U100 
     campaign_repository,
     make_campaign,
-    make_campaign_entity
+    make_campaign_entity,
+    status_campaign
 ):
-    launched_campaign = await make_campaign_entity(**make_campaign(), status=StatusCampaign.RUNNING)
-    failed_campaign = await make_campaign_entity(**make_campaign(), status=StatusCampaign.FAILED)
-    completed_campaign = await make_campaign_entity(**make_campaign(), status=StatusCampaign.DONE)
+    campaign = await make_campaign_entity(**make_campaign(), status=status_campaign)
     
     with pytest.raises(HTTPException):
         await campaign_repository.update_campaign(
-            campaign_id=launched_campaign.campaign_id, 
-            **make_campaign(),
-        )
-    with pytest.raises(HTTPException):
-        await campaign_repository.update_campaign(
-            campaign_id=failed_campaign.campaign_id, 
-            **make_campaign(),
-        )
-    with pytest.raises(HTTPException):
-        await campaign_repository.update_campaign(
-            campaign_id=completed_campaign.campaign_id, 
+            campaign_id=campaign.campaign_id, 
             **make_campaign(),
         )
 
