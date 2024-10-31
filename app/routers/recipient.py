@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Body, Path
-from pydantic import EmailStr
 import typing as t
+from fastapi import APIRouter, Body, Path, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import EmailStr
 
 from app.schemas import Recipient
-from app.db import AsyncSessionLocal
+from app.db import get_db_session
 from app.repository.recipient import RecipientRepository
 
 
 router = APIRouter(prefix='/recipients')
-recipient_repository = RecipientRepository(AsyncSessionLocal)
+
+
+def get_repository() -> RecipientRepository:
+    return RecipientRepository()
 
 
 @router.post('/', status_code=201)
@@ -16,21 +20,30 @@ async def add(
     name: t.Annotated[str, Body(examples=['Julia'])],
     lastname: t.Annotated[str, Body(examples=['Roberts'])],
     age: t.Annotated[int, Body(examples=[56], lt=100)],
-    contact_email: t.Annotated[EmailStr, Body(examples=['julia@example.com'])]
+    contact_email: t.Annotated[EmailStr, Body(examples=['julia@example.com'])],
+    session: AsyncSession = Depends(get_db_session),
+    repository: RecipientRepository = Depends(get_repository)
 ) -> Recipient:
-    recipient = await recipient_repository.create_recipient(name, lastname, age, contact_email)
+    recipient = await repository.add(name, lastname, age, contact_email, session)
     return Recipient.model_validate(recipient)
 
 
 @router.get('/')
-async def get_all() -> list[Recipient]:
-    recipients = await recipient_repository.get_all_recipients()
+async def get_all(
+    session: AsyncSession = Depends(get_db_session),
+    repository: RecipientRepository = Depends(get_repository)
+) -> list[Recipient]:
+    recipients = await repository.get_all(session)
     return [Recipient.model_validate(recipient) for recipient in recipients]
 
 
 @router.get('/{recipient_id}')
-async def get(recipient_id: int) -> Recipient:
-    recipient = await recipient_repository.get_recipient(recipient_id)
+async def get(
+    recipient_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    repository: RecipientRepository = Depends(get_repository)
+) -> Recipient:
+    recipient = await repository.get(recipient_id, session)
     return Recipient.model_validate(recipient)
 
 
@@ -40,12 +53,18 @@ async def update(
     name: t.Annotated[str, Body()],
     lastname: t.Annotated[str, Body()],
     age: t.Annotated[int, Body()],
-    contact_email: t.Annotated[EmailStr, Body()]
+    contact_email: t.Annotated[EmailStr, Body()],
+    session: AsyncSession = Depends(get_db_session),
+    repository: RecipientRepository = Depends(get_repository)
 ) -> Recipient:
-    updated_recipient = await recipient_repository.update_recipient(recipient_id, name, lastname, age, contact_email)
+    updated_recipient = await repository.update(recipient_id, name, lastname, age, contact_email, session)
     return Recipient.model_validate(updated_recipient)
 
 
 @router.delete('/{recipient_id}', status_code=204)
-async def delete(recipient_id: int) -> None:
-    await recipient_repository.delete_recipient(recipient_id)
+async def delete(
+    recipient_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    repository: RecipientRepository = Depends(get_repository)
+) -> None:
+    await repository.delete(recipient_id, session)

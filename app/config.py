@@ -13,6 +13,10 @@ class Config:
     DB_PORT: str
     DB_NAME: str
     APP_URL: str
+    EMAIL_HOST: str
+    EMAIL_PORT: str
+    EMAIL_NAME: str
+    EMAIL_PASS: str
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
@@ -30,9 +34,12 @@ def load_from_env() -> Config:
         DB_HOST=os.environ['DB_HOST'],
         DB_PORT=os.environ['DB_PORT'],
         DB_NAME=os.environ['DB_NAME'],
-        APP_URL=os.environ['APP_URL']
+        APP_URL=os.environ['APP_URL'],
+        EMAIL_HOST=os.environ['EMAIL_HOST'],
+        EMAIL_PORT=os.environ['EMAIL_PORT'],
+        EMAIL_NAME=os.environ['EMAIL_NAME'],
+        EMAIL_PASS=os.environ['EMAIL_PASS'],
     )
-# TODO @alex: для тестов тоже сделать функцию
 
 
 def load_from_env_for_tests() -> Config:
@@ -42,5 +49,9 @@ def load_from_env_for_tests() -> Config:
         DB_HOST=os.environ['TEST_DB_HOST'],
         DB_PORT=os.environ['TEST_DB_PORT'],
         DB_NAME=os.environ['TEST_DB_NAME'],
-        APP_URL=os.environ['APP_URL']
+        APP_URL=os.environ['APP_URL'],
+        EMAIL_HOST=os.environ['EMAIL_HOST'],
+        EMAIL_PORT=os.environ['EMAIL_PORT'],
+        EMAIL_NAME=os.environ['EMAIL_NAME'],
+        EMAIL_PASS=os.environ['EMAIL_PASS'],
     )

@@ -15,6 +15,7 @@ from app.models import StatusCampaign, CampaignOrm
 from main import app
 
 
+#TODO: В тестах не должно быть глобальных переменных заменить их на фикстуры
 test_config = load_from_env_for_tests()
 engine_test = create_async_engine(url=test_config.ASYNC_DATABASE_URL, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(bind=engine_test)
