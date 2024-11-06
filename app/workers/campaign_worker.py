@@ -7,7 +7,7 @@ from email.message import EmailMessage
 from app.config import load_from_env
 from app.schemas import Recipient, Campaign, Notification, StatusNotification
 from app.exceptions import WorkerException, EmailSendException
-from main import get_logger
+from app.server import get_logger
 
 
 class EmailClient:
@@ -42,7 +42,7 @@ class EmailClient:
             raise EmailSendException(campaign.campaign_id, recipient.contact_email)
         finally:
             return status
-        
+
         
 class ApiClient:
     def __init__(self, client: AsyncClient) -> None:
