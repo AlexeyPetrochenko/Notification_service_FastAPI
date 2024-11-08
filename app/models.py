@@ -74,4 +74,7 @@ class NotificationOrm(BaseOrm):
     recipient: Mapped['RecipientOrm'] = relationship()
 
     def __repr__(self) -> str:
-        return f'<{self.__class__.__name__}, id={self.notification_id}, campaign_id={self.campaign_id}, recipient_id={self.recipient_id}>'
+        return f'''
+    <{self.__class__.__name__}, id={self.notification_id}, 
+    campaign_id={self.campaign_id}, recipient_id={self.recipient_id}>
+    '''
