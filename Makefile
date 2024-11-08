@@ -2,7 +2,7 @@ run_tests:
 	python3 -m pytest .
 
 lint:
-	flake8 .e
+	flake8 .
 
 types:
 	mypy .
