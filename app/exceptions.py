@@ -4,7 +4,7 @@ class AppException(Exception):
     
     
 class WorkerException(AppException):
-    def __init__(self, status_code: int, reason) -> None:
+    def __init__(self, status_code: int, reason: str) -> None:
         super().__init__(reason=reason)
         self.status_code = status_code
 

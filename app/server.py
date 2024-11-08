@@ -39,5 +39,3 @@ def create_app() -> FastAPI:
     app.include_router(notification_router, tags=['notification'])
     
     return app
-
-app = create_app()
