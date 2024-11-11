@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17.0-alpine3.20
+        env:
+          POSTGRES_USER: user_postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group lint --group tests --frozen --no-cache
+
+      - name: Run flake8
+        run: uv run flake8 .
+      - name: Run mypy
+        run: uv run mypy .
+
+      - name: Connect to PostgreSQL and Run tests
+        env:
+          TEST_DB_USER: user_postgres
+          TEST_DB_PASS: postgres
+          TEST_DB_NAME: postgres_db
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: 5432
+          APP_URL: default
+          EMAIL_HOST: default
+          EMAIL_PORT: default
+          EMAIL_NAME: default
+          EMAIL_PASS: default
+        run: uv run pytest .
+        
