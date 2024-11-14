@@ -54,10 +54,10 @@ jobs:
           EMAIL_PORT: default
           EMAIL_NAME: default
           EMAIL_PASS: default
-          DB_USER: default,
-          DB_PASS: default,
-          DB_HOST: default,
-          DB_PORT: default,
-          DB_NAME: default,
+          DB_USER: default
+          DB_PASS: default
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_NAME: default
         run: uv run pytest .
         

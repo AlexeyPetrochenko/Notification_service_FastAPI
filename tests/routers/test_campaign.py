@@ -122,13 +122,13 @@ async def test__acquire_for_launch__returns_status_code_200(client, campaign_rep
     assert response.status_code == 200
     
 
-async def test__completion__mock_is_called_once(client, campaign_repo_completion_mock, random_id): 
-    await client.post(f'campaigns/{random_id}/completion')
+async def test__complete__mock_is_called_once(client, campaign_repo_complete_mock, random_id): 
+    await client.post(f'campaigns/{random_id}/complete')
     
-    assert campaign_repo_completion_mock.call_count == 1
+    assert campaign_repo_complete_mock.call_count == 1
 
 
-async def test_completion_returns_status_code_204(client, campaign_repo_completion_mock, random_id):  # noqa: U100
-    response = await client.post(f'campaigns/{random_id}/completion')
+async def test_complete_returns_status_code_204(client, campaign_repo_complete_mock, random_id):  # noqa: U100
+    response = await client.post(f'campaigns/{random_id}/complete')
     
     assert response.status_code == 204

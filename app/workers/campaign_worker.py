@@ -81,7 +81,7 @@ class ApiClient:
             raise WorkerException(status_code=404, detail='Failed receiving notification for update')
         
     async def complete_campaign(self, campaign: Campaign) -> None:
-        response = await self.client.post(f'/campaigns/{campaign.campaign_id}/completion')
+        response = await self.client.post(f'/campaigns/{campaign.campaign_id}/complete')
         if response.status_code != 204:
             raise WorkerException(status_code=422, detail='Failed to complete campaign')
             

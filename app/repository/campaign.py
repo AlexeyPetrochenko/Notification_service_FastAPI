@@ -88,7 +88,7 @@ class CampaignRepository:
         await session.commit()
         return campaign
     
-    async def completion(self, campaign_id: int, session: AsyncSession) -> None:
+    async def complete(self, campaign_id: int, session: AsyncSession) -> None:
         query = select(CampaignOrm).options(
             selectinload(CampaignOrm.notifications)
         ).where(CampaignOrm.campaign_id == campaign_id)
@@ -107,6 +107,7 @@ class CampaignRepository:
             )
         except ZeroDivisionError:
             raise NotFoundException(f'There are no notifications in this campaign [id: {campaign_id}].')
+        
         if percentage_delivered > 80:
             campaign.status = StatusCampaign.DONE
         else:
