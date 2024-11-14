@@ -3,16 +3,14 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 from datetime import datetime, timedelta
-import faker
-import random
 from pydantic import EmailStr
-
+from unittest.mock import patch
 
 from app.config import load_from_env_for_tests
 from app.db import BaseOrm
 from app.repository.campaign import CampaignRepository
 from app.repository.recipient import RecipientRepository
-from app.models import StatusCampaign, CampaignOrm
+from app.models import StatusCampaign, CampaignOrm, StatusNotification, NotificationOrm, RecipientOrm
 from app.server import create_app
 
 
@@ -39,38 +37,32 @@ async def test_session():
 
 
 @pytest.fixture
-async def get_faker():
-    return faker.Faker()
-
-
-@pytest.fixture
-async def campaign_repository():
-    yield CampaignRepository()
+def campaign_repository():
+    return CampaignRepository()
     
 
 @pytest.fixture
-async def recipient_repository():
-    yield RecipientRepository()
+def recipient_repository():
+    return RecipientRepository()
     
 
 @pytest.fixture
-async def make_campaign(get_faker):
-    def function_make_campaign(
+def make_campaign(faker, minute_in_future):
+    def inner(
         name: str = None, 
         content: str = None,
         launch_date: datetime | str | None = None
     ):
-        
         return {
-            'name': name if name else get_faker.catch_phrase(), 
-            'content': content if content else get_faker.text(max_nb_chars=100), 
-            'launch_date': launch_date if launch_date else get_faker.date_time_between(start_date='now', end_date='+30d')
+            'name': name or faker.catch_phrase(), 
+            'content': content or faker.text(max_nb_chars=100), 
+            'launch_date': launch_date or minute_in_future
         }   
-    return function_make_campaign
+    return inner
 
 
 @pytest.fixture
-async def make_recipient(get_faker):
+def make_recipient(faker):
     def inner(
         name: str = None,
         lastname: str = None,
@@ -78,59 +70,154 @@ async def make_recipient(get_faker):
         contact_email: EmailStr = None
     ):
         return {
-            'name': name or get_faker.first_name(),
-            'lastname': lastname or get_faker.last_name(),
-            'age': age or get_faker.random_int(min=14, max=90),
-            'contact_email': contact_email or get_faker.email()
+            'name': name or faker.first_name(),
+            'lastname': lastname or faker.last_name(),
+            'age': age or faker.random_int(min=14, max=90),
+            'contact_email': contact_email or faker.email()
         }
     return inner
 
 
 @pytest.fixture
-async def make_campaign_orm(get_faker):
-    def function_make_campaign_orm(
-        campaign_id: int = random.randint(1, 100),
-        name: str = get_faker.catch_phrase(),
-        content: str = get_faker.text(100),
-        status: StatusCampaign = StatusCampaign.CREATED,
-        launch_date: datetime = get_faker.date_time_between(start_date='now', end_date='+30d'),
-        created_at: datetime = get_faker.date_time_between(start_date='now', end_date='+30d'),
-        updated_at: datetime = get_faker.date_time_between(start_date='now', end_date='+30d'),
+def make_campaign_orm(faker, minute_in_future):
+    def inner(
+        campaign_id: int = None,
+        name: str = None,
+        content: str = None,
+        status: StatusCampaign = None,
+        launch_date: datetime = None,
+        created_at: datetime = None,
+        updated_at: datetime = None,
     ):
         return CampaignOrm(
-            campaign_id=campaign_id,
-            name=name,
-            content=content,
-            status=status,
-            launch_date=launch_date, 
-            created_at=created_at,
-            updated_at=updated_at
+            campaign_id=campaign_id or faker.random_int(1, 1000),
+            name=name or faker.catch_phrase(),
+            content=content or faker.text(100),
+            status=status or StatusCampaign.CREATED,
+            launch_date=launch_date or minute_in_future, 
+            created_at=created_at or datetime.now(),
+            updated_at=updated_at or datetime.now()
         )
-    return function_make_campaign_orm
+    return inner
 
 
 @pytest.fixture
-async def make_campaign_entity():
-    async def function_make_campaign_entity(name: str, content: str, launch_date: datetime, status: StatusCampaign = StatusCampaign.CREATED):
-        async with TestSessionLocal() as session:
-            new_campaign = CampaignOrm(name=name, content=content, status=status, launch_date=launch_date)
-            session.add(new_campaign)
-            await session.commit()
-            return new_campaign
-    return function_make_campaign_entity
+def make_campaign_entity(faker, minute_in_future, test_session):
+    async def inner(
+        name: str = None, 
+        content: str = None, 
+        launch_date: datetime = None, 
+        status: StatusCampaign = None
+    ):
+        new_campaign = CampaignOrm(
+            name=name or faker.catch_phrase(), 
+            content=content or faker.text(100), 
+            status=status or StatusCampaign.CREATED, 
+            launch_date=launch_date or minute_in_future,
+        )
+        test_session.add(new_campaign)
+        await test_session.commit()
+        return new_campaign
+    return inner
 
 
 @pytest.fixture
-async def minute_in_past():
+def make_recipient_entities(make_recipient, test_session):
+    async def inner(count: int) -> list[RecipientOrm]:
+        recipients = [RecipientOrm(**make_recipient()) for _ in range(count)]
+        test_session.add_all(recipients)
+        await test_session.commit()
+        
+        return recipients
+    return inner
+
+
+@pytest.fixture
+def make_notification_entities(test_session):
+    async def inner(status: StatusNotification, campaign_id: int, recipients: list[RecipientOrm]) -> list[NotificationOrm]:
+        notifications = []
+        for recipient in recipients:
+            notifications.append(
+                NotificationOrm(
+                    status=status,
+                    campaign_id=campaign_id,
+                    recipient_id=recipient.recipient_id
+                )
+            )
+        test_session.add_all(notifications)
+        await test_session.commit()
+        return notifications
+    return inner
+            
+
+@pytest.fixture
+def minute_in_past():
     return datetime.now() - timedelta(minutes=1)
         
 
 @pytest.fixture
-async def minute_in_future():
+def minute_in_future():
     return datetime.now() + timedelta(minutes=1)
 
 
 @pytest.fixture
-async def async_client():
+def random_id(faker):
+    return faker.random_int(min=1, max=10000)
+
+
+@pytest.fixture
+async def client():
     async with AsyncClient(transport=ASGITransport(app=create_app()), base_url='http://test') as ac:
         yield ac
+
+
+@pytest.fixture
+def campaign_repo_add_mock(make_campaign_orm):
+    with patch('app.routers.campaign.CampaignRepository.add') as mock:
+        mock.return_value = make_campaign_orm()
+        yield mock
+        
+
+@pytest.fixture
+def campaign_repo_get_all_mock():
+    with patch('app.routers.campaign.CampaignRepository.get_all') as mock:
+        yield mock
+
+
+@pytest.fixture
+def campaign_repo_get_mock(make_campaign_orm):
+    with patch('app.routers.campaign.CampaignRepository.get') as mock:
+        mock.return_value = make_campaign_orm()
+        yield mock
+        
+        
+@pytest.fixture
+def campaign_repo_update_mock(make_campaign_orm):
+    with patch('app.routers.campaign.CampaignRepository.update') as mock:
+        mock.return_value = make_campaign_orm()
+        yield mock
+        
+        
+@pytest.fixture
+def campaign_repo_delete_mock():
+    with patch('app.routers.campaign.CampaignRepository.delete') as mock:
+        yield mock
+        
+        
+@pytest.fixture
+def campaign_repo_run_mock():
+    with patch('app.routers.campaign.CampaignRepository.run') as mock:
+        yield mock
+        
+        
+@pytest.fixture
+def campaign_repo_acquire_mock(make_campaign_orm):
+    with patch('app.routers.campaign.CampaignRepository.acquire') as mock:
+        mock.return_value = make_campaign_orm() 
+        yield mock
+
+
+@pytest.fixture
+def campaign_repo_completion_mock():
+    with patch('app.routers.campaign.CampaignRepository.completion') as mock:
+        yield mock

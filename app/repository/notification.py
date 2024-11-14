@@ -2,9 +2,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 import typing as t
-from fastapi import HTTPException
 
 from app.models import StatusNotification, NotificationOrm
+from app.exceptions import NotFoundException, ConflictException
 
 
 class NotificationRepository:    
@@ -16,8 +16,9 @@ class NotificationRepository:
         try:
             await session.commit()
         except IntegrityError:
-            raise HTTPException(status_code=409, detail='Database data conflict, unable to create notification')
-        await session.refresh(notification)
+            raise ConflictException(
+                f'Unable to create notification with [campaign_id: {campaign_id}, recipient_id: {recipient_id}]'
+            )
         return notification
 
     async def get_all(self, session: AsyncSession) -> t.Sequence[NotificationOrm]:
@@ -29,7 +30,7 @@ class NotificationRepository:
     async def get(self, notification_id: int, session: AsyncSession) -> NotificationOrm:
         notification = await session.get(NotificationOrm, notification_id)
         if notification is None:
-            raise HTTPException(status_code=404, detail='Notification not found')
+            raise NotFoundException(detail=f'Notification [notification_id: {notification_id}] not found')
         return notification
 
     async def run(
@@ -44,8 +45,10 @@ class NotificationRepository:
         result = await session.execute(query)
         try:
             notification = result.scalars().one()
-        except InvalidRequestError as err:
-            raise HTTPException(status_code=422, detail=f'Error receiving notification - {err}')
+        except InvalidRequestError:
+            raise NotFoundException(
+                detail=f'Notification [campaign_id: {campaign_id}, recipient_id: {recipient_id}] not found'
+            )
         notification.status = status
         session.add(notification)
         await session.commit()
@@ -54,7 +57,7 @@ class NotificationRepository:
     async def delete(self, notification_id: int, session: AsyncSession) -> None:
         notification = await session.get(NotificationOrm, notification_id)
         if notification is None:
-            raise HTTPException(status_code=404, detail='Notification not found')
+            raise NotFoundException(detail=f'Notification [notification_id: {notification_id}] not found')
         await session.delete(notification)
 
     async def add_many(

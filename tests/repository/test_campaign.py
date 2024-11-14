@@ -1,9 +1,9 @@
 import pytest
-from fastapi import HTTPException
 from datetime import datetime, timedelta
 import random
 
-from app.models import CampaignOrm, StatusCampaign
+from app.models import CampaignOrm, StatusCampaign, StatusNotification
+from app.exceptions import ConflictException, NotFoundException, NoCampaignsAvailableException
 
 
 async def test__add__campaign_created_success(
@@ -16,12 +16,6 @@ async def test__add__campaign_created_success(
     campaign = await test_session.get(CampaignOrm, new_campaign.campaign_id)
     
     assert campaign is not None
-
-
-async def test__add__returning_value_orm(prepare_database, campaign_repository, make_campaign, test_session):  # noqa: U100
-    campaign = await campaign_repository.add(**make_campaign(), session=test_session)
-    
-    assert isinstance(campaign, CampaignOrm)
 
 
 async def test__add__new_campaign_has_status_created(prepare_database, campaign_repository, make_campaign, test_session):   # noqa: U100
@@ -38,11 +32,11 @@ async def test__add__exception_when_create_campaign_with_taken_name(
 ):
     await campaign_repository.add(**make_campaign(name='Taken Name'), session=test_session)
     
-    with pytest.raises(HTTPException):
+    with pytest.raises(ConflictException):
         await campaign_repository.add(**make_campaign(name='Taken Name'), session=test_session)
         
 
-async def test__add__campaign_has_creation_and_update_dates(
+async def test__add__new_campaign_has_equal_creation_and_update_dates(
     prepare_database,  # noqa: U100
     campaign_repository, 
     make_campaign,
@@ -50,18 +44,17 @@ async def test__add__campaign_has_creation_and_update_dates(
 ):
     campaign = await campaign_repository.add(**make_campaign(), session=test_session)
     
-    assert isinstance(campaign.created_at, datetime) and isinstance(campaign.updated_at, datetime)
+    assert campaign.updated_at == campaign.created_at
 
 
 async def test__get_all__check_count_returning_campaigns(
     prepare_database,  # noqa: U100
     campaign_repository,
-    make_campaign,
     make_campaign_entity,
     test_session
 ):
-    await make_campaign_entity(**make_campaign(name='First Campaign'))
-    await make_campaign_entity(**make_campaign(name='Second Campaign'))
+    await make_campaign_entity(name='First Campaign')
+    await make_campaign_entity(name='Second Campaign')
     
     campaigns = await campaign_repository.get_all(test_session)
     
@@ -70,41 +63,24 @@ async def test__get_all__check_count_returning_campaigns(
     
 async def test__get_all__return_empty_list_when_no_campaigns(prepare_database, campaign_repository, test_session):  # noqa: U100
     assert await campaign_repository.get_all(test_session) == []
-    
-
-async def test__get_all__returns_values_list_of_orm_models(
-    prepare_database,  # noqa: U100
-    campaign_repository,
-    make_campaign,
-    make_campaign_entity,
-    test_session
-):
-    await make_campaign_entity(**make_campaign('First Campaign'))
-    await make_campaign_entity(**make_campaign('Second Campaign'))
-    
-    campaigns = await campaign_repository.get_all(test_session)
-    
-    assert all([isinstance(campaign, CampaignOrm)for campaign in campaigns]) and isinstance(campaigns, list) 
 
 
 async def test__get__campaign_returned_successfully(
     prepare_database,  # noqa: U100
     campaign_repository,
-    make_campaign, 
     make_campaign_entity,
     test_session
 ):
-    new_campaign = await make_campaign_entity(**make_campaign())
+    new_campaign = await make_campaign_entity()
     
     campaign = await campaign_repository.get(new_campaign.campaign_id, test_session)
     
     assert campaign is not None
-    assert isinstance(campaign, CampaignOrm)
-    
+
     
 async def test__get__exception_campaign_not_found(prepare_database, campaign_repository, test_session):  # noqa: U100
     nonexistent_id = random.randint(1, 10)
-    with pytest.raises(HTTPException):
+    with pytest.raises(NotFoundException):
         await campaign_repository.get(nonexistent_id, test_session)
 
 
@@ -139,7 +115,7 @@ async def test__update__exception_campaign_not_found(
     test_session
 ):
     campaign_data = make_campaign()
-    with pytest.raises(HTTPException):
+    with pytest.raises(NotFoundException):
         await campaign_repository.update(
             campaign_id=7,
             name=campaign_data['name'],
@@ -152,20 +128,19 @@ async def test__update__exception_campaign_not_found(
 async def test__update__exception_campaign_name_already_exists(
     prepare_database,  # noqa: U100 
     campaign_repository,
-    make_campaign,
     make_campaign_entity,
     test_session,
-    get_faker
+    faker
 ):
-    first_campaign = await make_campaign_entity(**make_campaign(name='Name'))
-    await make_campaign_entity(**make_campaign(name='Name taken'))
+    first_campaign = await make_campaign_entity(name='Name')
+    await make_campaign_entity(name='Name taken')
     
-    with pytest.raises(HTTPException):
+    with pytest.raises(ConflictException):
         await campaign_repository.update(
             campaign_id=first_campaign.campaign_id, 
             name='Name taken',
-            content=get_faker.text(max_nb_chars=25),
-            launch_date=get_faker.date_time_between(start_date='now', end_date='+30d'),
+            content=faker.text(max_nb_chars=25),
+            launch_date=faker.date_time_between(start_date='now', end_date='+30d'),
             session=test_session
         )
 
@@ -179,9 +154,9 @@ async def test__update__prohibit_updating_campaigns_with_a_status_other_than_cre
     status_campaign,
     test_session
 ):
-    campaign = await make_campaign_entity(**make_campaign(), status=status_campaign)
+    campaign = await make_campaign_entity(status=status_campaign)
     
-    with pytest.raises(HTTPException):
+    with pytest.raises(ConflictException):
         await campaign_repository.update(
             campaign_id=campaign.campaign_id, 
             **make_campaign(),
@@ -189,8 +164,8 @@ async def test__update__prohibit_updating_campaigns_with_a_status_other_than_cre
         )
 
 
-async def test__delete__success_delete(prepare_database, campaign_repository, make_campaign, test_session, make_campaign_entity):   # noqa: U100 
-    campaign = await make_campaign_entity(**make_campaign())
+async def test__delete__success_delete(prepare_database, campaign_repository, test_session, make_campaign_entity):   # noqa: U100 
+    campaign = await make_campaign_entity()
     
     await campaign_repository.delete(campaign.campaign_id, test_session)
     delete_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
@@ -198,14 +173,13 @@ async def test__delete__success_delete(prepare_database, campaign_repository, ma
     assert delete_campaign is None
 
 
-async def test__delete__exception_when_campaign_not_found(prepare_database, campaign_repository, test_session):  # noqa: U100
-    nonexistent_id = random.randint(1, 10)
-    with pytest.raises(HTTPException):
-        await campaign_repository.delete(nonexistent_id, test_session)
+async def test__delete__exception_when_campaign_not_found(prepare_database, campaign_repository, test_session, random_id):  # noqa: U100
+    with pytest.raises(NotFoundException):
+        await campaign_repository.delete(random_id, test_session)
 
 
-async def test__run__campaign_status_updated_to_running(prepare_database, make_campaign, make_campaign_entity, campaign_repository, test_session):  # noqa: U100
-    campaign = await make_campaign_entity(**make_campaign(), status=StatusCampaign.CREATED)
+async def test__run__campaign_status_updated_to_running(prepare_database, make_campaign_entity, campaign_repository, test_session):  # noqa: U100
+    campaign = await make_campaign_entity(status=StatusCampaign.CREATED)
     
     await campaign_repository.run(campaign.campaign_id, test_session)
     running_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
@@ -215,24 +189,25 @@ async def test__run__campaign_status_updated_to_running(prepare_database, make_c
 
 async def test__run__exception_when_campaign_id_not_found(prepare_database, campaign_repository, test_session):  # noqa: U100
     nonexistent_id = random.randint(1, 10)
-    with pytest.raises(HTTPException):
+    with pytest.raises(NotFoundException):
         await campaign_repository.run(nonexistent_id, test_session)
         
 
 async def test__acquire__get_campaign_when_launch_date_arrives(
-    prepare_database, campaign_repository, test_session, make_campaign, make_campaign_entity, minute_in_past  # noqa: U100
+    prepare_database, campaign_repository, test_session, make_campaign_entity, minute_in_past  # noqa: U100
 ):
-    await make_campaign_entity(**make_campaign(launch_date=minute_in_past))
+    await make_campaign_entity(launch_date=minute_in_past)
 
     campaign = await campaign_repository.acquire(test_session)
     
-    assert isinstance(campaign, CampaignOrm)
+    assert campaign is not None
+    assert campaign.launch_date < datetime.now()
 
 
 async def test__acquire__status_changed_to_running(
-    prepare_database, campaign_repository, make_campaign, make_campaign_entity, minute_in_past, test_session  # noqa: U100
+    prepare_database, campaign_repository, make_campaign_entity, minute_in_past, test_session  # noqa: U100
 ): 
-    await make_campaign_entity(**make_campaign(launch_date=minute_in_past), status=StatusCampaign.CREATED)
+    await make_campaign_entity(launch_date=minute_in_past, status=StatusCampaign.CREATED)
     
     running_campaign = await campaign_repository.acquire(test_session)
 
@@ -242,7 +217,7 @@ async def test__acquire__status_changed_to_running(
 async def test__acquire__exception_when_no_campaign_for_launch(
     prepare_database, campaign_repository, test_session  # noqa: U100
 ):
-    with pytest.raises(HTTPException):
+    with pytest.raises(NoCampaignsAvailableException):
         await campaign_repository.acquire(test_session)
         
         
@@ -255,16 +230,93 @@ async def test__acquire__exception_when_no_campaign_for_launch(
     ]
 )
 async def test__acquire__exception_when_status_campaign_not_created(
-    prepare_database, campaign_repository, test_session, make_campaign_entity, make_campaign, minute_in_past, status  # noqa: U100
+    prepare_database, campaign_repository, test_session, make_campaign_entity, minute_in_past, status  # noqa: U100
 ):
-    await make_campaign_entity(**make_campaign(launch_date=minute_in_past), status=status)
-    with pytest.raises(HTTPException):
+    await make_campaign_entity(launch_date=minute_in_past, status=status)
+    with pytest.raises(NoCampaignsAvailableException):
         await campaign_repository.acquire(test_session)
 
 
 async def test__acquire__exception_when_launch_date_in_future(
-    prepare_database, campaign_repository, test_session, make_campaign_entity, make_campaign, minute_in_future  # noqa: U100
+    prepare_database, campaign_repository, test_session, make_campaign_entity, minute_in_future  # noqa: U100
 ):
-    await make_campaign_entity(**make_campaign(launch_date=minute_in_future), status=StatusCampaign.CREATED)
-    with pytest.raises(HTTPException):
+    await make_campaign_entity(launch_date=minute_in_future, status=StatusCampaign.CREATED)
+    with pytest.raises(NoCampaignsAvailableException):
         await campaign_repository.acquire(test_session)
+
+
+async def test__completion__exception_when_campaign_id_not_found(
+    prepare_database, campaign_repository, test_session, random_id  # noqa: U100
+):
+    with pytest.raises(NotFoundException):
+        await campaign_repository.completion(random_id, test_session)
+
+
+@pytest.mark.parametrize(
+    'status', 
+    [
+        StatusCampaign.CREATED,
+        StatusCampaign.FAILED,
+        StatusCampaign.DONE
+    ]
+)
+async def test__completion__exception_when_status_campaign_not_running(
+    prepare_database, campaign_repository, test_session, make_campaign_entity, status  # noqa: U100
+):
+    campaign = await make_campaign_entity(status=status)
+    
+    with pytest.raises(ConflictException):
+        await campaign_repository.completion(campaign.campaign_id, test_session)
+
+
+# @pytest.mark.parametrize()
+async def test__completion__status_done_when_percentage_successfully_sent_notifications_over_80_percents(
+    prepare_database,  # noqa: U100
+    campaign_repository,
+    test_session,
+    make_notification_entities,
+    make_campaign_entity,
+    make_recipient_entities
+):
+    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
+    first_group_recipients = await make_recipient_entities(count=10)
+    second_group_recipients = await make_recipient_entities(count=2)
+    await make_notification_entities(StatusNotification.DELIVERED, campaign.campaign_id, first_group_recipients)
+    await make_notification_entities(StatusNotification.UNDELIVERED, campaign.campaign_id, second_group_recipients)
+    
+    await campaign_repository.completion(campaign.campaign_id, test_session)
+    completed_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
+    
+    assert completed_campaign.status == StatusCampaign.DONE
+    
+    
+async def test__completion__status_failed_when_percentage_successfully_sent_notifications_under_80_percents(
+    prepare_database,  # noqa: U100
+    campaign_repository,
+    test_session,
+    make_notification_entities,
+    make_campaign_entity,
+    make_recipient_entities
+):
+    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
+    first_group_recipients = await make_recipient_entities(count=5)
+    second_group_recipients = await make_recipient_entities(count=5)
+    await make_notification_entities(StatusNotification.DELIVERED, campaign.campaign_id, first_group_recipients)
+    await make_notification_entities(StatusNotification.UNDELIVERED, campaign.campaign_id, second_group_recipients)
+    
+    await campaign_repository.completion(campaign.campaign_id, test_session)
+    completed_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
+    
+    assert completed_campaign.status == StatusCampaign.FAILED
+    
+    
+async def test__completion__exception_not_found_when_no_notifications_in_this_campaign(
+    prepare_database,  # noqa: U100
+    campaign_repository,
+    test_session,
+    make_campaign_entity,
+):
+    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
+    
+    with pytest.raises(NotFoundException):
+        await campaign_repository.completion(campaign.campaign_id, test_session)
