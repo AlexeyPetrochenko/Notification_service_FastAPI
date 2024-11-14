@@ -61,6 +61,9 @@ class RecipientOrm(BaseOrm):
         passive_deletes=True
     )
     
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}, id={self.recipient_id}>'
+
 
 class NotificationOrm(BaseOrm):
     __tablename__ = 'notifications'

@@ -37,7 +37,7 @@ class EmailClient:
         try:
             server.send_message(msg=message, from_addr=self.email, to_addrs=recipient.contact_email)
             status = StatusNotification.DELIVERED
-        except smtplib.SMTPException:
+        except (smtplib.SMTPException, ValueError):
             status = StatusNotification.UNDELIVERED
             raise EmailSendException(campaign.campaign_id, recipient.contact_email)
         finally:
@@ -55,19 +55,19 @@ class ApiClient:
             json={'campaign_id': campaign.campaign_id, 'recipients_id': recipients_id}
         )
         if response.status_code != 201:
-            raise WorkerException(status_code=422, reason='Failed to receive notifications')
+            raise WorkerException(status_code=422, detail='Failed to receive notifications')
         return [Notification(**notification) for notification in response.json()]
         
     async def fetch_recipients(self) -> list[Recipient]:
         response = await self.client.get('/recipients/')
         if response.status_code != 200: 
-            raise WorkerException(status_code=422, reason='Failed to get recipients')
+            raise WorkerException(status_code=422, detail='Failed to get recipients')
         return [Recipient(**recipient) for recipient in response.json()]
     
     async def acquire_campaign_for_launch(self) -> Campaign:
         response = await self.client.post('/campaigns/acquire')
         if response.status_code != 200:
-            raise WorkerException(status_code=422, reason='No campaigns available for launch')
+            raise WorkerException(status_code=422, detail='No campaigns available for launch')
         return Campaign(**response.json())
     
     async def update_notification_status(
@@ -78,8 +78,13 @@ class ApiClient:
             json={'status': status_notification}
         )
         if response.status_code != 200:
-            raise WorkerException(status_code=404, reason='Failed receiving notification for update')
-
+            raise WorkerException(status_code=404, detail='Failed receiving notification for update')
+        
+    async def complete_campaign(self, campaign: Campaign) -> None:
+        response = await self.client.post(f'/campaigns/{campaign.campaign_id}/completion')
+        if response.status_code != 204:
+            raise WorkerException(status_code=422, detail='Failed to complete campaign')
+            
 
 class NotificationSendingWorker: 
     def __init__(self, api_client: ApiClient, email_client: EmailClient, logger: logging.Logger) -> None:
@@ -101,13 +106,14 @@ class NotificationSendingWorker:
                     try:
                         status = await self.email_client.send_notification(email_server, recipient, campaign, msg)
                     except EmailSendException as err:
-                        self.logger.warning(err.reason)
+                        self.logger.warning(err.detail)
                     finally:
                         await self.api_client.update_notification_status(recipient, campaign, status)
                         
                 email_server.close()
+                await self.api_client.complete_campaign(campaign)
             except (WorkerException, EmailSendException) as err:
-                self.logger.warning(err.reason)
+                self.logger.warning(err.detail)
 
 
 if __name__ == '__main__':

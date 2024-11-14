@@ -1,11 +1,12 @@
 import typing as t
 import datetime
-from fastapi import APIRouter, Body, Path, HTTPException, Depends
+from fastapi import APIRouter, Body, Path, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas import Campaign
 from app.repository.campaign import CampaignRepository
 from app.db import get_db_session
+from app.exceptions import LaunchDateException
 
 
 router = APIRouter(prefix='/campaigns')
@@ -24,7 +25,7 @@ async def add(
     repository: CampaignRepository = Depends(get_repository)
 ) -> Campaign:
     if launch_date < datetime.datetime.now(): 
-        raise HTTPException(status_code=422, detail='Launch date must be in the future')
+        raise LaunchDateException(launch_date=launch_date)
     campaign = await repository.add(name, content, launch_date, session)
     return Campaign.model_validate(campaign)
 
@@ -58,7 +59,7 @@ async def update(
     repository: CampaignRepository = Depends(get_repository)
 ) -> Campaign:
     if launch_date < datetime.datetime.now():
-        raise HTTPException(status_code=422, detail='Launch date must be in the future')
+        raise LaunchDateException(launch_date=launch_date)
     updated_campaign = await repository.update(campaign_id, name, content, launch_date, session) 
     return Campaign.model_validate(updated_campaign)
 
@@ -86,3 +87,12 @@ async def acquire_for_launch(
 ) -> Campaign:
     campaign = await repository.acquire(session)
     return Campaign.model_validate(campaign)
+
+
+@router.post('/{campaign_id}/completion', status_code=204)
+async def completion(
+    campaign_id: int,
+    session: AsyncSession = Depends(get_db_session),
+    repository: CampaignRepository = Depends(get_repository)
+) -> None:
+    await repository.completion(campaign_id, session)

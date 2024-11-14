@@ -15,7 +15,6 @@ COPY alembic.ini /app/
 COPY migrations /app/migrations
 
 # copy application
-COPY .env  /app/
 COPY app /app/app
 
 # venv activate 

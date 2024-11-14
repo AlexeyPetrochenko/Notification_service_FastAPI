@@ -1,11 +1,13 @@
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 from datetime import datetime 
 from typing import Sequence
+from collections import Counter
 
-from app.models import CampaignOrm, StatusCampaign
+from app.models import CampaignOrm, StatusCampaign, StatusNotification
+from app.exceptions import ConflictException, NotFoundException, NoCampaignsAvailableException
 
 
 class CampaignRepository:
@@ -20,8 +22,7 @@ class CampaignRepository:
             await session.commit()
         except IntegrityError:
             await session.rollback()
-            raise HTTPException(status_code=409, detail="Campaign name already exists")
-        await session.refresh(campaign_orm)
+            raise ConflictException(f'Campaign [name: {name}], already exists')
         return campaign_orm
 
     async def get_all(self, session: AsyncSession) -> Sequence[CampaignOrm]:
@@ -33,7 +34,7 @@ class CampaignRepository:
     async def get(self, campaign_id: int, session: AsyncSession) -> CampaignOrm:
         campaign = await session.get(CampaignOrm, campaign_id)
         if campaign is None:
-            raise HTTPException(status_code=404, detail="Campaign not found")
+            raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
         return campaign
 
     async def update(
@@ -41,11 +42,9 @@ class CampaignRepository:
     ) -> CampaignOrm:
         campaign_orm = await session.get(CampaignOrm, campaign_id)
         if campaign_orm is None:
-            raise HTTPException(status_code=404, detail="Campaign not found")
+            raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
         if campaign_orm.status != StatusCampaign.CREATED:
-            raise HTTPException(
-                status_code=422, detail=f'Campaigns with {campaign_orm.status} status cannot be modified'
-            )
+            raise ConflictException(f'Campaigns with {campaign_orm.status} status cannot be modified')
         campaign_orm.name = name
         campaign_orm.content = content
         campaign_orm.launch_date = launch_date
@@ -54,14 +53,13 @@ class CampaignRepository:
             await session.commit()            
         except IntegrityError:
             await session.rollback()
-            raise HTTPException(status_code=400, detail="Campaign name already exists")
-        await session.refresh(campaign_orm)
+            raise ConflictException(f'Campaign [name: {name}], already exists')
         return campaign_orm
             
     async def delete(self, campaign_id: int, session: AsyncSession) -> None:
         campaign_orm = await session.get(CampaignOrm, campaign_id)
         if campaign_orm is None:
-            raise HTTPException(status_code=404, detail="Campaign not found")
+            raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
         await session.delete(campaign_orm)
         await session.commit()
 
@@ -70,7 +68,7 @@ class CampaignRepository:
         result = await session.execute(query)
         campaign = result.scalar_one_or_none()
         if campaign is None:
-            raise HTTPException(status_code=404, detail="Campaign not found")
+            raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
         campaign.status = StatusCampaign.RUNNING
         campaign.launch_date = datetime.now()
         await session.commit()
@@ -85,10 +83,33 @@ class CampaignRepository:
         result = await session.execute(query)
         campaign = result.scalars().first()
         if not campaign:
-            raise HTTPException(status_code=204, detail='No campaigns available for launch')
+            raise NoCampaignsAvailableException()
         campaign.status = StatusCampaign.RUNNING
         await session.commit()
-        await session.refresh(campaign)
         return campaign
     
+    async def completion(self, campaign_id: int, session: AsyncSession) -> None:
+        query = select(CampaignOrm).options(
+            selectinload(CampaignOrm.notifications)
+        ).where(CampaignOrm.campaign_id == campaign_id)
+        result = await session.execute(query)
+        campaign = result.scalars().first()
         
+        if campaign is None:
+            raise NotFoundException(f'Campaign with [id: {campaign_id}] not found')
+        if campaign.status != StatusCampaign.RUNNING:
+            raise ConflictException(f'Campaigns with [status: {campaign.status}] cannot be completion')
+        
+        notifications_statistic = Counter([notification.status for notification in campaign.notifications])
+        try:
+            percentage_delivered = (
+                notifications_statistic[StatusNotification.DELIVERED] / notifications_statistic.total() * 100
+            )
+        except ZeroDivisionError:
+            raise NotFoundException(f'There are no notifications in this campaign [id: {campaign_id}].')
+        if percentage_delivered > 80:
+            campaign.status = StatusCampaign.DONE
+        else:
+            campaign.status = StatusCampaign.FAILED
+        
+        await session.commit()
