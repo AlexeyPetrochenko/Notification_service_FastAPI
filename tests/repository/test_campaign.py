@@ -245,11 +245,11 @@ async def test__acquire__exception_when_launch_date_in_future(
         await campaign_repository.acquire(test_session)
 
 
-async def test__completion__exception_when_campaign_id_not_found(
+async def test__complete__exception_when_campaign_id_not_found(
     prepare_database, campaign_repository, test_session, random_id  # noqa: U100
 ):
     with pytest.raises(NotFoundException):
-        await campaign_repository.completion(random_id, test_session)
+        await campaign_repository.complete(random_id, test_session)
 
 
 @pytest.mark.parametrize(
@@ -260,17 +260,17 @@ async def test__completion__exception_when_campaign_id_not_found(
         StatusCampaign.DONE
     ]
 )
-async def test__completion__exception_when_status_campaign_not_running(
+async def test__complete__exception_when_status_campaign_not_running(
     prepare_database, campaign_repository, test_session, make_campaign_entity, status  # noqa: U100
 ):
     campaign = await make_campaign_entity(status=status)
     
     with pytest.raises(ConflictException):
-        await campaign_repository.completion(campaign.campaign_id, test_session)
+        await campaign_repository.complete(campaign.campaign_id, test_session)
 
 
 # @pytest.mark.parametrize()
-async def test__completion__status_done_when_percentage_successfully_sent_notifications_over_80_percents(
+async def test__complete__status_done_when_percentage_successfully_sent_notifications_over_80_percents(
     prepare_database,  # noqa: U100
     campaign_repository,
     test_session,
@@ -284,13 +284,13 @@ async def test__completion__status_done_when_percentage_successfully_sent_notifi
     await make_notification_entities(StatusNotification.DELIVERED, campaign.campaign_id, first_group_recipients)
     await make_notification_entities(StatusNotification.UNDELIVERED, campaign.campaign_id, second_group_recipients)
     
-    await campaign_repository.completion(campaign.campaign_id, test_session)
+    await campaign_repository.complete(campaign.campaign_id, test_session)
     completed_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
     
     assert completed_campaign.status == StatusCampaign.DONE
     
     
-async def test__completion__status_failed_when_percentage_successfully_sent_notifications_under_80_percents(
+async def test__complete__status_failed_when_percentage_successfully_sent_notifications_under_80_percents(
     prepare_database,  # noqa: U100
     campaign_repository,
     test_session,
@@ -304,13 +304,13 @@ async def test__completion__status_failed_when_percentage_successfully_sent_noti
     await make_notification_entities(StatusNotification.DELIVERED, campaign.campaign_id, first_group_recipients)
     await make_notification_entities(StatusNotification.UNDELIVERED, campaign.campaign_id, second_group_recipients)
     
-    await campaign_repository.completion(campaign.campaign_id, test_session)
+    await campaign_repository.complete(campaign.campaign_id, test_session)
     completed_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
     
     assert completed_campaign.status == StatusCampaign.FAILED
     
     
-async def test__completion__exception_not_found_when_no_notifications_in_this_campaign(
+async def test__complete__exception_not_found_when_no_notifications_in_this_campaign(
     prepare_database,  # noqa: U100
     campaign_repository,
     test_session,
@@ -319,4 +319,4 @@ async def test__completion__exception_not_found_when_no_notifications_in_this_ca
     campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
     
     with pytest.raises(NotFoundException):
-        await campaign_repository.completion(campaign.campaign_id, test_session)
+        await campaign_repository.complete(campaign.campaign_id, test_session)

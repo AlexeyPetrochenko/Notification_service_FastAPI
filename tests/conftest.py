@@ -218,6 +218,6 @@ def campaign_repo_acquire_mock(make_campaign_orm):
 
 
 @pytest.fixture
-def campaign_repo_completion_mock():
-    with patch('app.routers.campaign.CampaignRepository.completion') as mock:
+def campaign_repo_complete_mock():
+    with patch('app.routers.campaign.CampaignRepository.complete') as mock:
         yield mock

@@ -89,10 +89,10 @@ async def acquire_for_launch(
     return Campaign.model_validate(campaign)
 
 
-@router.post('/{campaign_id}/completion', status_code=204)
-async def completion(
+@router.post('/{campaign_id}/complete', status_code=204)
+async def complete(
     campaign_id: int,
     session: AsyncSession = Depends(get_db_session),
     repository: CampaignRepository = Depends(get_repository)
 ) -> None:
-    await repository.completion(campaign_id, session)
+    await repository.complete(campaign_id, session)
