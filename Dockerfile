@@ -2,15 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# install build dependenses
+# install build dependencies
 COPY --from=ghcr.io/astral-sh/uv:0.4.30 /uv /uvx /bin/
 
-# install dependenses
+# install dependencies
 COPY uv.lock /app/
 COPY pyproject.toml /app/
 RUN uv sync --frozen --no-cache
 
-# copy migrationsp
+# copy migrations
 COPY alembic.ini /app/
 COPY migrations /app/migrations
 
