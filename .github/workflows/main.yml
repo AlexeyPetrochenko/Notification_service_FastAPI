@@ -9,7 +9,6 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,14 +20,27 @@ jobs:
         run: uv python install 3.12
       - name: Install dependencies
         run: uv sync --group lint --group tests --frozen --no-cache
-
       - name: Run flake8
         run: uv run flake8 .
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group lint --group tests --frozen --no-cache
       - name: Run mypy
         run: uv run mypy .
 
   tests:
-    needs: [lint]
+    needs: [lint, types]
     runs-on: ubuntu-latest
 
     services:
