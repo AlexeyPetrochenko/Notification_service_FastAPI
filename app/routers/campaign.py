@@ -5,15 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas import Campaign
 from app.repository.campaign import CampaignRepository
+from app.service import CampaignService
 from app.db import get_db_session
 from app.exceptions import LaunchDateException
+from app.dependencies import get_campaign_repository, get_service
 
 
 router = APIRouter(prefix='/campaigns')
-
-
-def get_repository() -> CampaignRepository:
-    return CampaignRepository()
 
 
 @router.post('/', status_code=201)
@@ -22,7 +20,7 @@ async def add(
     content: t.Annotated[str, Body(examples=['Только в эту пятницу - скидки на все товары 30%!'])],
     launch_date: t.Annotated[datetime.datetime, Body(examples=['2024-10-04T16:05:16'])],
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> Campaign:
     if launch_date < datetime.datetime.now(): 
         raise LaunchDateException(launch_date=launch_date)
@@ -33,7 +31,7 @@ async def add(
 @router.get('/')
 async def get_all(
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> list[Campaign]:
     campaigns = await repository.get_all(session)
     return [Campaign.model_validate(campaign) for campaign in campaigns] 
@@ -43,7 +41,7 @@ async def get_all(
 async def get(
     campaign_id: int, 
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> Campaign:
     campaign = await repository.get(campaign_id, session)
     return Campaign.model_validate(campaign)
@@ -56,7 +54,7 @@ async def update(
     content: t.Annotated[str, Body()],
     launch_date: t.Annotated[datetime.datetime, Body()],
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> Campaign:
     if launch_date < datetime.datetime.now():
         raise LaunchDateException(launch_date=launch_date)
@@ -67,7 +65,7 @@ async def update(
 @router.delete('/{campaign_id}', status_code=204)
 async def delete(
     campaign_id: int, session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> None:
     await repository.delete(campaign_id, session)
 
@@ -75,7 +73,7 @@ async def delete(
 @router.post('/{campaign_id}/run', status_code=204)
 async def run(
     campaign_id: int, session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> None:
     await repository.run(campaign_id, session)
 
@@ -83,7 +81,7 @@ async def run(
 @router.post('/acquire')
 async def acquire_for_launch(
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> Campaign:
     campaign = await repository.acquire(session)
     return Campaign.model_validate(campaign)
@@ -93,6 +91,6 @@ async def acquire_for_launch(
 async def complete(
     campaign_id: int,
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_repository)
+    service: CampaignService = Depends(get_service)
 ) -> None:
-    await repository.complete(campaign_id, session)
+    await service.complete(campaign_id, session)

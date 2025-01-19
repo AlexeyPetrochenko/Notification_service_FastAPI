@@ -10,6 +10,7 @@ from app.config import load_from_env_for_tests
 from app.db import BaseOrm
 from app.repository.campaign import CampaignRepository
 from app.repository.recipient import RecipientRepository
+from app.repository.notification import NotificationRepository
 from app.models import StatusCampaign, CampaignOrm, StatusNotification, NotificationOrm, RecipientOrm
 from app.server import create_app
 
@@ -37,6 +38,16 @@ async def test_session():
 
 
 @pytest.fixture
+async def client():
+    async with AsyncClient(transport=ASGITransport(app=create_app()), base_url='http://test') as ac:
+        yield ac
+
+
+#########################################
+# Fixtures for creating objects 
+#########################################
+
+@pytest.fixture
 def campaign_repository():
     return CampaignRepository()
     
@@ -44,7 +55,12 @@ def campaign_repository():
 @pytest.fixture
 def recipient_repository():
     return RecipientRepository()
-    
+
+
+@pytest.fixture
+def notification_repository():
+    return NotificationRepository()
+
 
 @pytest.fixture
 def make_campaign(faker, minute_in_future):
@@ -122,7 +138,7 @@ def make_campaign_entity(faker, minute_in_future, test_session):
 
 
 @pytest.fixture
-def make_recipient_entities(make_recipient, test_session):
+def make_recipient_entities(make_recipient, test_session) -> list[RecipientOrm]:
     async def inner(count: int) -> list[RecipientOrm]:
         recipients = [RecipientOrm(**make_recipient()) for _ in range(count)]
         test_session.add_all(recipients)
@@ -149,7 +165,11 @@ def make_notification_entities(test_session):
         return notifications
     return inner
             
-
+            
+#######################################
+# Utils Fixture
+#######################################
+ 
 @pytest.fixture
 def minute_in_past():
     return datetime.now() - timedelta(minutes=1)
@@ -165,12 +185,9 @@ def random_id(faker):
     return faker.random_int(min=1, max=10000)
 
 
-@pytest.fixture
-async def client():
-    async with AsyncClient(transport=ASGITransport(app=create_app()), base_url='http://test') as ac:
-        yield ac
-
-
+#####################################
+# REPOSITORY MOCKS
+#####################################
 @pytest.fixture
 def campaign_repo_add_mock(make_campaign_orm):
     with patch('app.routers.campaign.CampaignRepository.add') as mock:

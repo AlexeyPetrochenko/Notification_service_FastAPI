@@ -1,12 +1,10 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from sqlalchemy.orm import selectinload
 from datetime import datetime 
 from typing import Sequence
-from collections import Counter
 
-from app.models import CampaignOrm, StatusCampaign, StatusNotification
+from app.models import CampaignOrm, StatusCampaign
 from app.exceptions import ConflictException, NotFoundException, NoCampaignsAvailableException
 
 
@@ -87,30 +85,10 @@ class CampaignRepository:
         campaign.status = StatusCampaign.RUNNING
         await session.commit()
         return campaign
-    
-    async def complete(self, campaign_id: int, session: AsyncSession) -> None:
-        query = select(CampaignOrm).options(
-            selectinload(CampaignOrm.notifications)
-        ).where(CampaignOrm.campaign_id == campaign_id)
-        result = await session.execute(query)
-        campaign = result.scalars().first()
-        
+
+    async def complete(self, session: AsyncSession, campaign_id: id, status: StatusCampaign) -> None:
+        campaign = await session.get(CampaignOrm, campaign_id)
         if campaign is None:
-            raise NotFoundException(f'Campaign with [id: {campaign_id}] not found')
-        if campaign.status != StatusCampaign.RUNNING:
-            raise ConflictException(f'Campaigns with [status: {campaign.status}] cannot be completion')
-        
-        notifications_statistic = Counter([notification.status for notification in campaign.notifications])
-        try:
-            percentage_delivered = (
-                notifications_statistic[StatusNotification.DELIVERED] / notifications_statistic.total() * 100
-            )
-        except ZeroDivisionError:
-            raise NotFoundException(f'There are no notifications in this campaign [id: {campaign_id}].')
-        
-        if percentage_delivered > 80:
-            campaign.status = StatusCampaign.DONE
-        else:
-            campaign.status = StatusCampaign.FAILED
-        
+            raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
+        campaign.status = status 
         await session.commit()

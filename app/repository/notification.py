@@ -75,3 +75,11 @@ class NotificationRepository:
         session.add_all(notifications)
         await session.commit()
         return notifications
+
+    async def get_notifications_by_campaign_id(
+        self, campaign_id: int, session: AsyncSession
+    ) -> t.Sequence[NotificationOrm]:
+        query = select(NotificationOrm).where(NotificationOrm.campaign_id == campaign_id)
+        result = await session.execute(query)
+        notifications = result.scalars().all()
+        return notifications
