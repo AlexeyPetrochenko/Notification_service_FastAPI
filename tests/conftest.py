@@ -124,7 +124,7 @@ def make_campaign_entity(faker, minute_in_future, test_session):
         content: str = None, 
         launch_date: datetime = None, 
         status: StatusCampaign = None
-    ):
+    ) -> CampaignOrm:
         new_campaign = CampaignOrm(
             name=name or faker.catch_phrase(), 
             content=content or faker.text(100), 
@@ -235,6 +235,6 @@ def campaign_repo_acquire_mock(make_campaign_orm):
 
 
 @pytest.fixture
-def campaign_repo_complete_mock():
-    with patch('app.routers.campaign.CampaignRepository.complete') as mock:
+def campaign_service_complete_mock():
+    with patch('app.routers.campaign.CampaignService.complete') as mock:
         yield mock

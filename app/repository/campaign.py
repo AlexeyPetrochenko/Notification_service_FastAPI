@@ -86,7 +86,7 @@ class CampaignRepository:
         await session.commit()
         return campaign
 
-    async def complete(self, session: AsyncSession, campaign_id: id, status: StatusCampaign) -> None:
+    async def complete(self, session: AsyncSession, campaign_id: int, status: StatusCampaign) -> None:
         campaign = await session.get(CampaignOrm, campaign_id)
         if campaign is None:
             raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")

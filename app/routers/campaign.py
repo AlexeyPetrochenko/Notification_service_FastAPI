@@ -90,7 +90,7 @@ async def acquire_for_launch(
 @router.post('/{campaign_id}/complete', status_code=204)
 async def complete(
     campaign_id: int,
-    session: AsyncSession = Depends(get_db_session),
-    service: CampaignService = Depends(get_service)
+    session: t.Annotated[AsyncSession, Depends(get_db_session)],
+    service: t.Annotated[CampaignService, Depends(get_service)],
 ) -> None:
     await service.complete(campaign_id, session)

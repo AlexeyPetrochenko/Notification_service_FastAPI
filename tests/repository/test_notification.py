@@ -24,5 +24,3 @@ async def test__get_notifications_by_campaign_id__returns_only_notifications_for
     notifications = await notification_repository.get_notifications_by_campaign_id(campaign_id=first_campaign.campaign_id, session=test_session)
     
     assert len(notifications) == 5
-    
-    

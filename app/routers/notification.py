@@ -1,4 +1,4 @@
-import typing as t
+from typing import Annotated
 from fastapi import APIRouter, Body, Path, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,9 +17,9 @@ def get_repository_notification() -> NotificationRepository:
 
 @router.post('/', status_code=201)
 async def add(
-    status: t.Annotated[StatusNotification, Body(examples=['pending'])],
-    campaign_id: t.Annotated[int, Body(examples=['1'])],
-    recipient_id: t.Annotated[int, Body(examples=['4'])],
+    status: Annotated[StatusNotification, Body(examples=['pending'])],
+    campaign_id: Annotated[int, Body(examples=['1'])],
+    recipient_id: Annotated[int, Body(examples=['4'])],
     session: AsyncSession = Depends(get_db_session), 
     repository: NotificationRepository = Depends(get_repository_notification)
 ) -> Notification:
@@ -48,9 +48,9 @@ async def get(
 
 @router.post('/{campaign_id}/recipients/{recipient_id}/run')
 async def run(
-    campaign_id: t.Annotated[int, Path()],
-    recipient_id: t.Annotated[int, Path()],
-    status: t.Annotated[StatusNotification, Body(embed=True, examples=['sent'])],
+    campaign_id: Annotated[int, Path()],
+    recipient_id: Annotated[int, Path()],
+    status: Annotated[StatusNotification, Body(embed=True, examples=['sent'])],
     session: AsyncSession = Depends(get_db_session), 
     repository: NotificationRepository = Depends(get_repository_notification)
 ) -> Notification:
@@ -69,8 +69,8 @@ async def delete(
 
 @router.post('/add/many', status_code=201)
 async def add_many(
-    campaign_id: t.Annotated[int, Body()], 
-    recipients_id: t.Annotated[list[int], Body(examples=[[1, 2, 3]])],
+    campaign_id: Annotated[int, Body()], 
+    recipients_id: Annotated[list[int], Body(examples=[[1, 2, 3]])],
     session: AsyncSession = Depends(get_db_session), 
     repository: NotificationRepository = Depends(get_repository_notification)
 ) -> list[Notification]:
