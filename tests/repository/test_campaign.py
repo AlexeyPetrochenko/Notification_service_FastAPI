@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 import random
 
-from app.models import CampaignOrm, StatusCampaign, StatusNotification
+from app.models import CampaignOrm, StatusCampaign
 from app.exceptions import ConflictException, NotFoundException, NoCampaignsAvailableException
 
 
@@ -245,78 +245,18 @@ async def test__acquire__exception_when_launch_date_in_future(
         await campaign_repository.acquire(test_session)
 
 
-async def test__complete__exception_when_campaign_id_not_found(
-    prepare_database, campaign_repository, test_session, random_id  # noqa: U100
-):
+async def test__complete__exception_campaign_not_found(prepare_database, campaign_repository, test_session, random_id):  # noqa: U100
     with pytest.raises(NotFoundException):
-        await campaign_repository.complete(random_id, test_session)
+        await campaign_repository.complete(test_session, random_id, StatusCampaign.FAILED)
 
 
-@pytest.mark.parametrize(
-    'status', 
-    [
-        StatusCampaign.CREATED,
-        StatusCampaign.FAILED,
-        StatusCampaign.DONE
-    ]
-)
-async def test__complete__exception_when_status_campaign_not_running(
-    prepare_database, campaign_repository, test_session, make_campaign_entity, status  # noqa: U100
-):
-    campaign = await make_campaign_entity(status=status)
-    
-    with pytest.raises(ConflictException):
-        await campaign_repository.complete(campaign.campaign_id, test_session)
-
-
-# @pytest.mark.parametrize()
-async def test__complete__status_done_when_percentage_successfully_sent_notifications_over_80_percents(
-    prepare_database,  # noqa: U100
-    campaign_repository,
-    test_session,
-    make_notification_entities,
-    make_campaign_entity,
-    make_recipient_entities
-):
-    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
-    first_group_recipients = await make_recipient_entities(count=10)
-    second_group_recipients = await make_recipient_entities(count=2)
-    await make_notification_entities(StatusNotification.DELIVERED, campaign.campaign_id, first_group_recipients)
-    await make_notification_entities(StatusNotification.UNDELIVERED, campaign.campaign_id, second_group_recipients)
-    
-    await campaign_repository.complete(campaign.campaign_id, test_session)
-    completed_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
-    
-    assert completed_campaign.status == StatusCampaign.DONE
-    
-    
-async def test__complete__status_failed_when_percentage_successfully_sent_notifications_under_80_percents(
-    prepare_database,  # noqa: U100
-    campaign_repository,
-    test_session,
-    make_notification_entities,
-    make_campaign_entity,
-    make_recipient_entities
-):
-    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
-    first_group_recipients = await make_recipient_entities(count=5)
-    second_group_recipients = await make_recipient_entities(count=5)
-    await make_notification_entities(StatusNotification.DELIVERED, campaign.campaign_id, first_group_recipients)
-    await make_notification_entities(StatusNotification.UNDELIVERED, campaign.campaign_id, second_group_recipients)
-    
-    await campaign_repository.complete(campaign.campaign_id, test_session)
-    completed_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
-    
-    assert completed_campaign.status == StatusCampaign.FAILED
-    
-    
-async def test__complete__exception_not_found_when_no_notifications_in_this_campaign(
-    prepare_database,  # noqa: U100
-    campaign_repository,
-    test_session,
-    make_campaign_entity,
+@pytest.mark.parametrize('status', [StatusCampaign.FAILED, StatusCampaign.DONE])
+async def test__complete__status_update_success(
+    prepare_database, campaign_repository, test_session, make_campaign_entity, status    # noqa: U100
 ):
     campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
     
-    with pytest.raises(NotFoundException):
-        await campaign_repository.complete(campaign.campaign_id, test_session)
+    await campaign_repository.complete(test_session, campaign.campaign_id, status=status)
+    update_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
+    
+    assert update_campaign.status == status
