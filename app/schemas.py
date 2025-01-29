@@ -1,11 +1,15 @@
+import datetime
+import uuid
+
 from pydantic import BaseModel, ConfigDict, EmailStr
 from app.models import StatusCampaign, StatusNotification
-import datetime
-    
 
-class Campaign(BaseModel):
+
+class Base(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
+
+class Campaign(Base):
     campaign_id: int
     name: str
     content: str
@@ -16,9 +20,7 @@ class Campaign(BaseModel):
     updated_at: datetime.datetime
 
 
-class Recipient(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    
+class Recipient(Base):
     recipient_id: int
     name: str
     lastname: str
@@ -26,10 +28,13 @@ class Recipient(BaseModel):
     contact_email: EmailStr
     
 
-class Notification(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    
+class Notification(Base):
     notification_id: int
     status: StatusNotification
     campaign_id: int
     recipient_id: int
+
+
+class User(Base):
+    user_id: uuid.UUID
+    email: EmailStr
