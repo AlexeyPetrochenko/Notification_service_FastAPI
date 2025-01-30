@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas import Campaign
 from app.repository.campaign import CampaignRepository
-from app.service import CampaignService
+from app.service.campaign import CampaignService
 from app.db import get_db_session
 from app.exceptions import LaunchDateException
-from app.dependencies import get_campaign_repository, get_service
+from app.dependencies import get_campaign_repository, get_campaign_service
 
 
 router = APIRouter(prefix='/campaigns')
@@ -91,6 +91,6 @@ async def acquire_for_launch(
 async def complete(
     campaign_id: int,
     session: t.Annotated[AsyncSession, Depends(get_db_session)],
-    service: t.Annotated[CampaignService, Depends(get_service)],
+    service: t.Annotated[CampaignService, Depends(get_campaign_service)],
 ) -> None:
     await service.complete(campaign_id, session)

@@ -87,4 +87,7 @@ jobs:
         DB_HOST: localhost
         DB_PORT: 5433
         DB_NAME: default
+        JWT_SECRET: default
+        JWT_ALGORITHM: default
+        JWT_EXP: 30
       run: uv run pytest .

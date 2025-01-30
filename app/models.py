@@ -1,7 +1,10 @@
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import func, ForeignKey
+import uuid
 import enum
 import datetime
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import func, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.db import BaseOrm
 
@@ -81,3 +84,11 @@ class NotificationOrm(BaseOrm):
     <{self.__class__.__name__}, id={self.notification_id}, 
     campaign_id={self.campaign_id}, recipient_id={self.recipient_id}>
     '''
+
+
+class UserOrm(BaseOrm):
+    __tablename__ = 'users'
+    
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    hash_password: Mapped[str] = mapped_column(nullable=False)

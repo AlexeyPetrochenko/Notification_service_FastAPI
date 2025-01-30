@@ -1,12 +1,14 @@
+import logging
+import typing as t
+
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-import logging
 from starlette.middleware.base import BaseHTTPMiddleware
-import typing as t
 
 from app.routers.campaign import router as campaign_router
 from app.routers.recipient import router as recipient_router
 from app.routers.notification import router as notification_router
+from app.routers.user import router as user_router
 from app.exceptions import AppException
 
 
@@ -44,5 +46,6 @@ def create_app() -> FastAPI:
     app.include_router(campaign_router, tags=['campaign'])
     app.include_router(recipient_router, tags=['recipient'])
     app.include_router(notification_router, tags=['notification'])
+    app.include_router(user_router, tags=['user'])
     
     return app
