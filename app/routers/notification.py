@@ -6,9 +6,10 @@ from app.models import StatusNotification
 from app.schemas import Notification
 from app.repository.notification import NotificationRepository 
 from app.db import get_db_session
+from app.dependencies import get_current_user
 
 
-router = APIRouter(prefix='/notifications')
+router = APIRouter(prefix='/notifications', dependencies=[Depends(get_current_user)])
 
 
 def get_repository_notification() -> NotificationRepository:

@@ -1,10 +1,13 @@
+import uuid
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+
 import pytest
+import jwt 
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
-from datetime import datetime, timedelta
 from pydantic import EmailStr
-from unittest.mock import patch
 
 from app.config import load_from_env_for_tests
 from app.db import BaseOrm
@@ -13,6 +16,8 @@ from app.repository.recipient import RecipientRepository
 from app.repository.notification import NotificationRepository
 from app.models import StatusCampaign, CampaignOrm, StatusNotification, NotificationOrm, RecipientOrm
 from app.server import create_app
+from app.schemas import User
+from app.dependencies import get_current_user
 
 
 # TODO: В тестах не должно быть глобальных переменных заменить их на фикстуры
@@ -43,9 +48,36 @@ async def client():
         yield ac
 
 
+@pytest.fixture
+def make_user(faker):
+    def inner(user_id: uuid.UUID = None, email: str = None) -> User:
+        user_id = user_id or uuid.uuid4()
+        email = email or faker.email()
+        return User(user_id=user_id, email=email)
+    return inner
+
+
+@pytest.fixture
+async def auth_client(make_user):
+    app = create_app()
+    app.dependency_overrides[get_current_user] = make_user
+    
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as ac:
+        yield ac
+        
+        
+@pytest.fixture
+def make_jwt_token() -> dict:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=test_config.JWT_EXP)
+    data = {"sub": str(uuid.uuid4()), "exp": expire}
+    token = jwt.encode(payload=data, key=test_config.JWT_SECRET, algorithm=test_config.JWT_ALGORITHM)
+    headers = {"Authorization": f"Bearer {token}"}
+    return headers
+        
 #########################################
 # Fixtures for creating objects 
 #########################################
+
 
 @pytest.fixture
 def campaign_repository():
@@ -138,7 +170,7 @@ def make_campaign_entity(faker, minute_in_future, test_session):
 
 
 @pytest.fixture
-def make_recipient_entities(make_recipient, test_session) -> list[RecipientOrm]:
+def make_recipient_entities(make_recipient, test_session):
     async def inner(count: int) -> list[RecipientOrm]:
         recipients = [RecipientOrm(**make_recipient()) for _ in range(count)]
         test_session.add_all(recipients)
@@ -164,8 +196,8 @@ def make_notification_entities(test_session):
         await test_session.commit()
         return notifications
     return inner
-            
-            
+
+    
 #######################################
 # Utils Fixture
 #######################################

@@ -1,12 +1,22 @@
 from typing import Annotated
 
 from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repository.campaign import CampaignRepository
 from app.repository.notification import NotificationRepository
 from app.repository.user import UserRepository
 from app.service.campaign import CampaignService
-from app.service.user import UserService
+from app.service.user import UserService, AuthService
+from app.db import get_db_session
+from app.schemas import User
+
+
+# def get_oauth2_scheme() -> OAuth2PasswordBearer:
+#     return OAuth2PasswordBearer(tokenUrl='login')
+
+get_oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 
 
 def get_campaign_repository() -> CampaignRepository:
@@ -32,3 +42,15 @@ def get_user_service(
     user_repository: Annotated[UserRepository, Depends(get_user_repository)]
 ) -> UserService:
     return UserService(user_repository)
+
+
+def get_auth_service(user_repository: Annotated[UserRepository, Depends(get_user_repository)]) -> AuthService:
+    return AuthService(user_repository)
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(get_oauth2_scheme)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    session: Annotated[AsyncSession, Depends(get_db_session)]
+) -> User:
+    return await auth_service.get_current_user(session, token)

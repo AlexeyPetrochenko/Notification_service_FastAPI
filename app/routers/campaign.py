@@ -1,4 +1,4 @@
-import typing as t
+from typing import Annotated
 import datetime
 from fastapi import APIRouter, Body, Path, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,21 +6,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import Campaign
 from app.repository.campaign import CampaignRepository
 from app.service.campaign import CampaignService
+from app.service.user import AuthService  # noqa
 from app.db import get_db_session
 from app.exceptions import LaunchDateException
-from app.dependencies import get_campaign_repository, get_campaign_service
+from app.dependencies import get_campaign_repository, get_campaign_service, get_current_user
 
 
-router = APIRouter(prefix='/campaigns')
+router = APIRouter(prefix='/campaigns', dependencies=[Depends(get_current_user)])
 
 
 @router.post('/', status_code=201)
 async def add(
-    name: t.Annotated[str, Body(examples=['Оповещение по черной пятнице'])],
-    content: t.Annotated[str, Body(examples=['Только в эту пятницу - скидки на все товары 30%!'])],
-    launch_date: t.Annotated[datetime.datetime, Body(examples=['2024-10-04T16:05:16'])],
+    name: Annotated[str, Body(examples=['Оповещение по черной пятнице'])],
+    content: Annotated[str, Body(examples=['Только в эту пятницу - скидки на все товары 30%!'])],
+    launch_date: Annotated[datetime.datetime, Body(examples=['2024-10-04T16:05:16'])],
     session: AsyncSession = Depends(get_db_session),
-    repository: CampaignRepository = Depends(get_campaign_repository)
+    repository: CampaignRepository = Depends(get_campaign_repository),
 ) -> Campaign:
     if launch_date < datetime.datetime.now(): 
         raise LaunchDateException(launch_date=launch_date)
@@ -49,10 +50,10 @@ async def get(
 
 @router.put('/{campaign_id}')
 async def update(
-    campaign_id: t.Annotated[int, Path()],
-    name: t.Annotated[str, Body()],
-    content: t.Annotated[str, Body()],
-    launch_date: t.Annotated[datetime.datetime, Body()],
+    campaign_id: Annotated[int, Path()],
+    name: Annotated[str, Body()],
+    content: Annotated[str, Body()],
+    launch_date: Annotated[datetime.datetime, Body()],
     session: AsyncSession = Depends(get_db_session),
     repository: CampaignRepository = Depends(get_campaign_repository)
 ) -> Campaign:
@@ -90,7 +91,7 @@ async def acquire_for_launch(
 @router.post('/{campaign_id}/complete', status_code=204)
 async def complete(
     campaign_id: int,
-    session: t.Annotated[AsyncSession, Depends(get_db_session)],
-    service: t.Annotated[CampaignService, Depends(get_campaign_service)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    service: Annotated[CampaignService, Depends(get_campaign_service)],
 ) -> None:
     await service.complete(campaign_id, session)
