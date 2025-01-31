@@ -38,3 +38,8 @@ class Notification(Base):
 class User(Base):
     user_id: uuid.UUID
     email: EmailStr
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
