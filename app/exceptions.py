@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from fastapi import HTTPException, status
+
 
 class AppException(Exception):
     def __init__(self, detail: str, status_code: int) -> None:
@@ -9,25 +11,28 @@ class AppException(Exception):
 
 class ConflictException(AppException):
     def __init__(self, detail: str) -> None:
-        super().__init__(detail=detail, status_code=409)
+        super().__init__(detail=detail, status_code=status.HTTP_409_CONFLICT)
     
 
 class NotFoundException(AppException):
     def __init__(self, detail: str) -> None:
-        super().__init__(detail=detail, status_code=404)
+        super().__init__(detail=detail, status_code=status.HTTP_404_NOT_FOUND)
 
 
 class LaunchDateException(AppException):
     def __init__(self, launch_date: datetime) -> None:
         super().__init__(
             detail=f'Launch date [launch_date: {launch_date}] < {datetime.now()} must be in the future',
-            status_code=422
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
     
 
 class NoCampaignsAvailableException(AppException):
     def __init__(self) -> None:
-        super().__init__(detail='No campaigns available for launch', status_code=422)
+        super().__init__(
+            detail='No campaigns available for launch',
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
     
     
 class WorkerException(AppException):
@@ -37,4 +42,16 @@ class WorkerException(AppException):
 
 class EmailSendException(AppException):
     def __init__(self, campaign_id: int, email: str) -> None:
-        super().__init__(detail=f'email send error: [{campaign_id}: {email}]', status_code=424)
+        super().__init__(
+            detail=f'mail sending error: [{campaign_id}: {email}]', 
+            status_code=status.HTTP_424_FAILED_DEPENDENCY
+        )
+
+
+class CredentialsException(HTTPException):
+    def __init__(self, detail: str = "Could not validate credentials") -> None:
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )

@@ -32,6 +32,10 @@ class TestConfig(BaseSettings):
     DB_PORT: str
     DB_NAME: str
     
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+    JWT_EXP: int
+    
     model_config = SettingsConfigDict(env_prefix="TEST_", env_file=".env", extra="ignore")
 
     @property

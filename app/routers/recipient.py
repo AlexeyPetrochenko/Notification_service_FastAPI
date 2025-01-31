@@ -6,9 +6,10 @@ from pydantic import EmailStr
 from app.schemas import Recipient
 from app.db import get_db_session
 from app.repository.recipient import RecipientRepository
+from app.dependencies import get_current_user
 
 
-router = APIRouter(prefix='/recipients')
+router = APIRouter(prefix='/recipients', dependencies=[Depends(get_current_user)])
 
 
 def get_repository() -> RecipientRepository:
