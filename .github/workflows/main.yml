@@ -93,4 +93,10 @@ jobs:
         TEST_JWT_SECRET: default
         TEST_JWT_ALGORITHM: default
         TEST_JWT_EXP: 30
+        TOKEN_WORKER: default
+        RMQ_USER: default
+        RMQ_PASS: default
+        RMQ_HOST: default
+        RMQ_PORT: 5672
+        
       run: uv run pytest .

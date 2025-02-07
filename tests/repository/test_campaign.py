@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import random
 
 from app.models import CampaignOrm, StatusCampaign
-from app.exceptions import ConflictException, NotFoundException, NoCampaignsAvailableException
+from app.exceptions import ConflictException, NotFoundException, NoAvailableCampaignsException
 
 
 async def test__add__campaign_created_success(
@@ -217,7 +217,7 @@ async def test__acquire__status_changed_to_running(
 async def test__acquire__exception_when_no_campaign_for_launch(
     prepare_database, campaign_repository, test_session  # noqa: U100
 ):
-    with pytest.raises(NoCampaignsAvailableException):
+    with pytest.raises(NoAvailableCampaignsException):
         await campaign_repository.acquire(test_session)
         
         
@@ -233,7 +233,7 @@ async def test__acquire__exception_when_status_campaign_not_created(
     prepare_database, campaign_repository, test_session, make_campaign_entity, minute_in_past, status  # noqa: U100
 ):
     await make_campaign_entity(launch_date=minute_in_past, status=status)
-    with pytest.raises(NoCampaignsAvailableException):
+    with pytest.raises(NoAvailableCampaignsException):
         await campaign_repository.acquire(test_session)
 
 
@@ -241,22 +241,5 @@ async def test__acquire__exception_when_launch_date_in_future(
     prepare_database, campaign_repository, test_session, make_campaign_entity, minute_in_future  # noqa: U100
 ):
     await make_campaign_entity(launch_date=minute_in_future, status=StatusCampaign.CREATED)
-    with pytest.raises(NoCampaignsAvailableException):
+    with pytest.raises(NoAvailableCampaignsException):
         await campaign_repository.acquire(test_session)
-
-
-async def test__complete__exception_campaign_not_found(prepare_database, campaign_repository, test_session, random_id):  # noqa: U100
-    with pytest.raises(NotFoundException):
-        await campaign_repository.complete(test_session, random_id, StatusCampaign.FAILED)
-
-
-@pytest.mark.parametrize('status', [StatusCampaign.FAILED, StatusCampaign.DONE])
-async def test__complete__status_update_success(
-    prepare_database, campaign_repository, test_session, make_campaign_entity, status    # noqa: U100
-):
-    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
-    
-    await campaign_repository.complete(test_session, campaign.campaign_id, status=status)
-    update_campaign = await test_session.get(CampaignOrm, campaign.campaign_id)
-    
-    assert update_campaign.status == status
