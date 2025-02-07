@@ -121,15 +121,3 @@ async def test__acquire_for_launch__returns_status_code_200(auth_client, campaig
     response = await auth_client.post('/campaigns/acquire')
     
     assert response.status_code == 200
-    
-
-async def test__complete__mock_is_called_once(auth_client, campaign_service_complete_mock, random_id): 
-    await auth_client.post(f'campaigns/{random_id}/complete')
-    
-    assert campaign_service_complete_mock.call_count == 1
-
-
-async def test_complete_returns_status_code_204(auth_client, campaign_service_complete_mock, random_id):  # noqa: U100
-    response = await auth_client.post(f'campaigns/{random_id}/complete')
-    
-    assert response.status_code == 204

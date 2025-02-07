@@ -9,22 +9,35 @@ services:
       - .env
     depends_on:
       - db
+      - broker
     networks:
       - app-network
     command: >
       sh -c "alembic upgrade head && uvicorn app.server:create_app --host 0.0.0.0 --factory"
   
-  worker:
+  campaign_worker:
     build: .
     env_file:
       - .env
     depends_on:
-      - db
-      - app
+      broker:
+        condition: service_healthy
     networks:
       - app-network
     command: >
       sh -c "python3 -m app.workers.campaign_worker"
+
+  email_worker:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      broker:
+        condition: service_healthy
+    networks:
+      - app-network
+    command: >
+      sh -c "python3 -m app.workers.email_worker"
 
   db:
     image: postgres:17.0-alpine3.20
@@ -37,6 +50,26 @@ services:
     networks:
       - app-network
 
+
+  broker:
+    image: rabbitmq:4.0.5-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBIT_DEFAULT_USER: ${RMQ_USER}
+      RABBIT_DEFAULT_PASS: ${RMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - app-network
+
+
   test_db:
     image: postgres:17.0-alpine3.20
     environment:
@@ -46,5 +79,9 @@ services:
     ports:
       - "5433:5432"
 
+
 networks:
   app-network:
+
+volumes:
+  rabbitmq-data:

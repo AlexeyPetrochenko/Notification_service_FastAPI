@@ -43,3 +43,13 @@ class User(Base):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class NotificationBody(BaseModel):
+    recipient_id: int
+    email: EmailStr
+    first_name: str
+    last_name: str
+    campaign_id: int
+    campaign_title: str
+    content: str
