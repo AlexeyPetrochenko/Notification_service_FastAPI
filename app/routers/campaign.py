@@ -1,6 +1,6 @@
 from typing import Annotated
 import datetime
-from fastapi import APIRouter, Body, Path, Depends
+from fastapi import APIRouter, Body, Path, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas import Campaign
@@ -15,7 +15,7 @@ from app.dependencies import get_campaign_repository, get_campaign_service, get_
 router = APIRouter(prefix='/campaigns', dependencies=[Depends(get_current_user)])
 
 
-@router.post('/', status_code=201)
+@router.post('/', status_code=status.HTTP_201_CREATED)
 async def add(
     name: Annotated[str, Body(examples=['Оповещение по черной пятнице'])],
     content: Annotated[str, Body(examples=['Только в эту пятницу - скидки на все товары 30%!'])],
@@ -29,7 +29,7 @@ async def add(
     return Campaign.model_validate(campaign)
 
 
-@router.get('/')
+@router.get('/', status_code=status.HTTP_200_OK)
 async def get_all(
     session: AsyncSession = Depends(get_db_session),
     repository: CampaignRepository = Depends(get_campaign_repository)
@@ -38,7 +38,7 @@ async def get_all(
     return [Campaign.model_validate(campaign) for campaign in campaigns] 
 
 
-@router.get('/{campaign_id}')
+@router.get('/{campaign_id}', status_code=status.HTTP_200_OK)
 async def get(
     campaign_id: int, 
     session: AsyncSession = Depends(get_db_session),
@@ -63,7 +63,7 @@ async def update(
     return Campaign.model_validate(updated_campaign)
 
 
-@router.delete('/{campaign_id}', status_code=204)
+@router.delete('/{campaign_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete(
     campaign_id: int, session: AsyncSession = Depends(get_db_session),
     repository: CampaignRepository = Depends(get_campaign_repository)
@@ -71,7 +71,7 @@ async def delete(
     await repository.delete(campaign_id, session)
 
 
-@router.post('/{campaign_id}/run', status_code=204)
+@router.post('/{campaign_id}/run', status_code=status.HTTP_204_NO_CONTENT)
 async def run(
     campaign_id: int, session: AsyncSession = Depends(get_db_session),
     repository: CampaignRepository = Depends(get_campaign_repository)
@@ -88,10 +88,9 @@ async def acquire_for_launch(
     return Campaign.model_validate(campaign)
 
 
-@router.post('/{campaign_id}/complete', status_code=204)
+@router.post('/complete/', status_code=status.HTTP_200_OK)
 async def complete(
-    campaign_id: int,
     session: Annotated[AsyncSession, Depends(get_db_session)],
     service: Annotated[CampaignService, Depends(get_campaign_service)],
-) -> None:
-    await service.complete(campaign_id, session)
+) -> Campaign:
+    return await service.complete(session)

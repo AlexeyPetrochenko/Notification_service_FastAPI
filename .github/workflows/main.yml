@@ -79,7 +79,7 @@ jobs:
         TEST_DB_PORT: 5432
         APP_URL: default
         EMAIL_HOST: default
-        EMAIL_PORT: default
+        EMAIL_PORT: 465
         EMAIL_NAME: default
         EMAIL_PASS: default
         DB_USER: default
@@ -93,4 +93,10 @@ jobs:
         TEST_JWT_SECRET: default
         TEST_JWT_ALGORITHM: default
         TEST_JWT_EXP: 30
+        TOKEN_WORKER: default
+        RMQ_USER: default
+        RMQ_PASS: default
+        RMQ_HOST: default
+        RMQ_PORT: 5672
+        
       run: uv run pytest .
