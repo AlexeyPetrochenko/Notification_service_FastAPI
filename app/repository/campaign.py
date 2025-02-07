@@ -4,8 +4,8 @@ from sqlalchemy import select, and_
 from datetime import datetime 
 from typing import Sequence
 
-from app.models import CampaignOrm, StatusCampaign
-from app.exceptions import ConflictException, NotFoundException, NoCampaignsAvailableException
+from app.models import CampaignOrm, StatusCampaign, NotificationOrm, StatusNotification
+from app.exceptions import ConflictException, NotFoundException, NoAvailableCampaignsException
 
 
 class CampaignRepository:
@@ -29,12 +29,12 @@ class CampaignRepository:
         campaigns_orm = result.scalars().all()
         return campaigns_orm
 
-    async def get(self, campaign_id: int, session: AsyncSession) -> CampaignOrm:
+    async def get(self, campaign_id: int, session: AsyncSession) -> CampaignOrm | None:
         campaign = await session.get(CampaignOrm, campaign_id)
         if campaign is None:
             raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
         return campaign
-
+    
     async def update(
         self, campaign_id: int, name: str, content: str, launch_date: datetime, session: AsyncSession
     ) -> CampaignOrm:
@@ -81,14 +81,23 @@ class CampaignRepository:
         result = await session.execute(query)
         campaign = result.scalars().first()
         if not campaign:
-            raise NoCampaignsAvailableException()
+            raise NoAvailableCampaignsException(detail='No available campaigns for launch')
         campaign.status = StatusCampaign.RUNNING
         await session.commit()
         return campaign
 
-    async def complete(self, session: AsyncSession, campaign_id: int, status: StatusCampaign) -> None:
-        campaign = await session.get(CampaignOrm, campaign_id)
-        if campaign is None:
-            raise NotFoundException(detail=f"Campaign with [id: {campaign_id}] not found")
-        campaign.status = status 
+    async def complete(self, session: AsyncSession) -> CampaignOrm | None:
+        query = (
+            select(CampaignOrm)
+            .where(CampaignOrm.status == StatusCampaign.RUNNING)
+            .where(~CampaignOrm.notifications.any(NotificationOrm.status == StatusNotification.PENDING))
+        ).with_for_update()
+        result = await session.execute(query)
+        campaign = result.scalars().first()
+        if not campaign:
+            return None
+        campaign.status = StatusCampaign.DONE
         await session.commit()
+        return campaign
+        
+        

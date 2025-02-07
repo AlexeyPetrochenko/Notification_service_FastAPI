@@ -27,15 +27,15 @@ class LaunchDateException(AppException):
         )
     
 
-class NoCampaignsAvailableException(AppException):
-    def __init__(self) -> None:
+class NoAvailableCampaignsException(AppException):
+    def __init__(self, detail: str) -> None:
         super().__init__(
-            detail='No campaigns available for launch',
+            detail=detail,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
     
     
-class WorkerException(AppException):
+class ApiClientException(AppException):
     def __init__(self, status_code: int, detail: str) -> None:
         super().__init__(detail=detail, status_code=status_code)
 
