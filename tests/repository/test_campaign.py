@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 import random
 
-from app.models import CampaignOrm, StatusCampaign
+from app.models import CampaignOrm, StatusCampaign, StatusNotification
 from app.exceptions import ConflictException, NotFoundException, NoAvailableCampaignsException
 
 
@@ -243,3 +243,66 @@ async def test__acquire__exception_when_launch_date_in_future(
     await make_campaign_entity(launch_date=minute_in_future, status=StatusCampaign.CREATED)
     with pytest.raises(NoAvailableCampaignsException):
         await campaign_repository.acquire(test_session)
+
+
+async def test__complete__when_campaign_not_found_returns_none(
+    prepare_database, test_session, campaign_repository  # noqa: U100
+):
+    assert await campaign_repository.complete(session=test_session) is None
+
+
+async def test__complete__update_status_to_done_when_no_pending_notifications(
+    prepare_database,  # noqa: U100
+    campaign_repository,
+    test_session,
+    make_campaign_entity,
+    make_recipient_entities,
+    make_notification_entities
+):
+    recipients = await make_recipient_entities(4)
+    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
+    await make_notification_entities(
+        status=StatusNotification.DELIVERED, campaign_id=campaign.campaign_id, recipients=recipients
+    )
+    
+    completed_campaign = await campaign_repository.complete(test_session)
+    
+    assert completed_campaign.status == StatusCampaign.DONE
+    
+
+async def test__complete__returns_campaign_when_no_pending_notifications(
+    prepare_database,  # noqa: U100
+    campaign_repository,
+    test_session,
+    make_campaign_entity,
+    make_recipient_entities,
+    make_notification_entities
+):
+    recipients = await make_recipient_entities(4)
+    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
+    await make_notification_entities(
+        status=StatusNotification.DELIVERED, campaign_id=campaign.campaign_id, recipients=recipients
+    )
+    
+    completed_campaign = await campaign_repository.complete(test_session)
+    
+    assert completed_campaign is not None
+
+
+async def test__complete__returns_none_when_campaign_has_pending_notifications(
+    prepare_database,  # noqa: U100
+    campaign_repository,
+    test_session,
+    make_campaign_entity,
+    make_recipient_entities,
+    make_notification_entities
+):
+    recipients = await make_recipient_entities(4)
+    campaign = await make_campaign_entity(status=StatusCampaign.RUNNING)
+    await make_notification_entities(
+        status=StatusNotification.PENDING, campaign_id=campaign.campaign_id, recipients=recipients
+    )
+    
+    completed_campaign = await campaign_repository.complete(test_session)
+    
+    assert completed_campaign is None

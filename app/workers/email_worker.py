@@ -10,11 +10,6 @@ from app.clients.email_client import EmailClient
 from app.clients.api_client import ApiClient
 from app.exceptions import EmailSendException
 from app.config import load_from_env
-from app.server import get_logger
-
-
-# TODO ALexP: Передать logger в класс
-logger = get_logger()
 
 
 class EmailWorker:
@@ -31,28 +26,20 @@ class EmailWorker:
         await asyncio.Future()
 
     async def process_sending_message(self, message: AbstractIncomingMessage) -> None:
-        async with message.process():          
-            logger.info("Сообщение взято в работу")
-            
-            body = NotificationBody(**json.loads(message.body.decode()))
-            logger.info("Сообщение обработано")
-            
-            msg = self.email_client.make_message(body)
-            logger.info("Сообщение подготовлено email_client")
-            
-            try:
-                self.email_client.send_notification(body, msg)
-                logger.info("Успешно отправлено сообщение")
-                await self.api_client.update_notification_status(
-                    body.recipient_id, body.campaign_id, StatusNotification.DELIVERED
-                )
-                logger.info("Статус сообщения в БД изменен на DELIVERED")
-            except EmailSendException:
-                await self.api_client.update_notification_status(
-                    body.
-                    recipient_id, body.campaign_id, StatusNotification.UNDELIVERED
-                )
-                logger.info("Статус сообщения в БД изменен на UNDELIVERED")
+        body = NotificationBody(**json.loads(message.body.decode()))
+        msg = self.email_client.make_message(body)
+        try:
+            self.email_client.send_notification(body, msg)
+            await self.api_client.update_notification_status(
+                body.recipient_id, body.campaign_id, StatusNotification.DELIVERED
+            )
+            await message.ack()
+        except EmailSendException:
+            await self.api_client.update_notification_status(
+                body.
+                recipient_id, body.campaign_id, StatusNotification.UNDELIVERED
+            )
+            await message.ack()
                 
                 
 if __name__ == '__main__':
