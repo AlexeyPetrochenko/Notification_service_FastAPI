@@ -14,18 +14,32 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn app.server:create_app --host 0.0.0.0 --factory"
 
-  worker:
-    depends_on:
-      - db
-      - app
-    image: ghcr.io/alexeypetrochenko/notification_service_fastapi:v1.0.1
+
+  campaign_worker:
+    image: ghcr.io/alexeypetrochenko/notification_service_fastapi:v1.0.2
+    
     env_file:
       - .env
+    depends_on:
+      broker:
+        condition: service_healthy
     networks:
       - app-network
     command: >
       sh -c "python3 -m app.workers.campaign_worker"
-  
+
+  email_worker:
+    image: ghcr.io/alexeypetrochenko/notification_service_fastapi:v1.0.2
+    env_file:
+      - .env
+    depends_on:
+      broker:
+        condition: service_healthy
+    networks:
+      - app-network
+    command: >
+      sh -c "python3 -m app.workers.email_worker"
+
   db:
     image: postgres:17.0-alpine3.20
     environment:
@@ -36,6 +50,24 @@ services:
       - "5432:5432"
     networks:
       - app-network
+
+
+  broker:
+    image: rabbitmq:4.0.5-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBIT_DEFAULT_USER: ${RMQ_USER}
+      RABBIT_DEFAULT_PASS: ${RMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      retries: 5
+      timeout: 5s
+    networks:
+      - app-network
+
 
 networks:
   app-network:

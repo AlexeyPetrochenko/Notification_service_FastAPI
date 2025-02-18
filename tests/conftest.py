@@ -14,21 +14,37 @@ from app.db import BaseOrm
 from app.repository.campaign import CampaignRepository
 from app.repository.recipient import RecipientRepository
 from app.repository.notification import NotificationRepository
-from app.models import StatusCampaign, CampaignOrm, StatusNotification, NotificationOrm, RecipientOrm
+from app.repository.user import UserRepository
+from app.models import StatusCampaign, CampaignOrm, StatusNotification, NotificationOrm, RecipientOrm, UserOrm
+from app.service.campaign import CampaignService 
+from app.service.user import UserService
 from app.server import create_app
 from app.schemas import User
 from app.dependencies import get_current_user
 
 
-# TODO: В тестах не должно быть глобальных переменных заменить их на фикстуры
-test_config = load_from_env_for_tests()
-engine_test = create_async_engine(url=test_config.ASYNC_DATABASE_URL, poolclass=NullPool)
-TestSessionLocal = async_sessionmaker(bind=engine_test, expire_on_commit=False)
-BaseOrm.bind = engine_test
+#########################################
+# Fixtures for Config
+#########################################
 
 
 @pytest.fixture
-async def prepare_database():
+def test_config():
+    return load_from_env_for_tests()
+    
+
+@pytest.fixture
+def engine_test(test_config):
+    return create_async_engine(url=test_config.ASYNC_DATABASE_URL, poolclass=NullPool)
+    
+
+@pytest.fixture
+def test_session_maker(engine_test):
+    return async_sessionmaker(bind=engine_test, expire_on_commit=False)
+
+
+@pytest.fixture
+async def prepare_database(engine_test):
     async with engine_test.begin() as conn:
         await conn.run_sync(BaseOrm.metadata.create_all)
     yield
@@ -37,8 +53,8 @@ async def prepare_database():
 
 
 @pytest.fixture
-async def test_session():
-    async with TestSessionLocal() as session:
+async def test_session(test_session_maker):
+    async with test_session_maker() as session:
         yield session
 
 
@@ -67,7 +83,7 @@ async def auth_client(make_user):
         
         
 @pytest.fixture
-def make_jwt_token() -> dict:
+def make_jwt_token(test_config) -> dict:
     expire = datetime.now(timezone.utc) + timedelta(minutes=test_config.JWT_EXP)
     data = {"sub": str(uuid.uuid4()), "exp": expire}
     token = jwt.encode(payload=data, key=test_config.JWT_SECRET, algorithm=test_config.JWT_ALGORITHM)
@@ -92,6 +108,21 @@ def recipient_repository():
 @pytest.fixture
 def notification_repository():
     return NotificationRepository()
+
+
+@pytest.fixture
+def user_repository():
+    return UserRepository()
+
+
+@pytest.fixture
+def campaign_service(notification_repository, campaign_repository):
+    return CampaignService(campaign_repository, notification_repository)
+
+
+@pytest.fixture
+def user_service(user_repository):
+    return UserService(user_repository)
 
 
 @pytest.fixture
@@ -197,6 +228,39 @@ def make_notification_entities(test_session):
         return notifications
     return inner
 
+
+@pytest.fixture
+def make_user_data(faker):
+    def inner(email: str = None, password: str = None):
+        return {
+            'email': email or faker.email(),
+            'password': password or faker.password()
+        }
+    return inner
+
+
+@pytest.fixture
+def make_user_orm(faker):
+    
+    return UserOrm(
+        user_id=uuid.uuid4(),
+        email=faker.email(),
+        hash_password='hash_password'
+    )
+
+
+@pytest.fixture
+def make_object_user(test_session, faker):
+    async def inner(email: str = None, hash_password: str = None) -> UserOrm:
+        user = UserOrm(
+            email=email or faker.email(),
+            hash_password=hash_password or faker.password()
+        )
+        test_session.add(user)
+        await test_session.commit()
+        return user
+    return inner
+
     
 #######################################
 # Utils Fixture
@@ -267,6 +331,19 @@ def campaign_repo_acquire_mock(make_campaign_orm):
 
 
 @pytest.fixture
+def campaign_repo_complete_mock(make_campaign_orm):
+    with patch('app.service.campaign.CampaignRepository.complete') as mock:
+        mock.return_value = make_campaign_orm()
+        yield mock
+
+
+@pytest.fixture
 def campaign_service_complete_mock():
     with patch('app.routers.campaign.CampaignService.complete') as mock:
+        yield mock
+        
+
+@pytest.fixture
+def user_repository_add_mock():
+    with patch('app.service.user.UserRepository.add') as mock:
         yield mock
