@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import logging.config
 
 import aio_pika
 from httpx import AsyncClient
@@ -8,11 +10,9 @@ from app.schemas import Recipient, NotificationBody, Campaign
 from app.exceptions import ApiClientException
 from app.clients.broker_client import RabbitMQClient
 from app.clients.api_client import ApiClient
-from app.server import get_logger
 
 
-# TODO ALexP: Переадать logger в класс
-logger = get_logger()
+logger = logging.getLogger('app.workers.campaign_worker')
 
             
 class CampaignWorker: 
@@ -47,7 +47,7 @@ class CampaignWorker:
         queue: aio_pika.abc.AbstractQueue = await channel.declare_queue("email_queue", durable=True)     
         await channel.default_exchange.publish(message, routing_key=queue.name)
         
-    async def run_campaign(self) -> None:
+    async def run_campaign(self) -> Campaign:
         campaign = await self.api_client.acquire_campaign_for_launch()
         recipients = await self.api_client.fetch_recipients()
         await self.api_client.prepare_notifications(campaign, recipients)
@@ -55,23 +55,34 @@ class CampaignWorker:
             message = self.make_message(recipient, campaign)
             try:
                 await self.add_to_queue(message)
-            except Exception as err:
-                logger.info(err)
-                
+            except Exception:
+                logger.exception(
+                    'Failed to add message to queue, campaign_id: %(campaign_id)s, recipient_id: %(recipient_id)s',
+                    {
+                        'campaign_id': campaign.campaign_id,
+                        'recipient_id': recipient.recipient_id
+                    }
+                )
+        return campaign
+    
     async def complete_campaign(self) -> Campaign:
         campaign = await self.api_client.complete_campaign()
         return campaign
         
     async def main(self) -> None:
+        logger.info('CampaignWorker has started successfully')
         while True:
             try:  
-                await self.run_campaign()
-            except ApiClientException as err:
-                logger.info(err)
+                campaign = await self.run_campaign()
+                logger.info('The campaign_id: %s has started successfully', campaign.campaign_id)
+            except ApiClientException:
+                logger.info('There are no campaigns to run')
             try:
-                await self.complete_campaign()
-            except ApiClientException as err:
-                logger.info(err)
+                campaign = await self.complete_campaign()
+                logger.info('The campaign_id: %s has been successfully completed', campaign.campaign_id)
+                
+            except ApiClientException:
+                logger.info('There are no campaigns to complete.')
             await asyncio.sleep(10)
             
             

@@ -1,4 +1,5 @@
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated="auto")
@@ -9,4 +10,7 @@ def get_password_hash(password: str) -> str:
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(password, hashed_password)
+    try:
+        return pwd_context.verify(password, hashed_password)
+    except UnknownHashError:
+        return False

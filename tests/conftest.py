@@ -17,7 +17,7 @@ from app.repository.notification import NotificationRepository
 from app.repository.user import UserRepository
 from app.models import StatusCampaign, CampaignOrm, StatusNotification, NotificationOrm, RecipientOrm, UserOrm
 from app.service.campaign import CampaignService 
-from app.service.user import UserService
+from app.service.user import UserService, AuthService
 from app.server import create_app
 from app.schemas import User
 from app.dependencies import get_current_user
@@ -123,6 +123,11 @@ def campaign_service(notification_repository, campaign_repository):
 @pytest.fixture
 def user_service(user_repository):
     return UserService(user_repository)
+
+
+@pytest.fixture
+def auth_service(user_repository, test_config):
+    return AuthService(user_repository, test_config)
 
 
 @pytest.fixture
@@ -245,7 +250,7 @@ def make_user_orm(faker):
     return UserOrm(
         user_id=uuid.uuid4(),
         email=faker.email(),
-        hash_password='hash_password'
+        hash_password='fake_hash_password'
     )
 
 
@@ -346,4 +351,20 @@ def campaign_service_complete_mock():
 @pytest.fixture
 def user_repository_add_mock():
     with patch('app.service.user.UserRepository.add') as mock:
+        yield mock
+
+
+@pytest.fixture
+def user_repository_get_by_email_mock():
+    with patch('app.service.user.UserRepository.get_by_email') as mock:
+        yield mock
+
+
+################################################
+# MOCK UTILS
+################################################
+
+@pytest.fixture
+def verify_password_mock():
+    with patch('app.service.user.verify_password') as mock:
         yield mock

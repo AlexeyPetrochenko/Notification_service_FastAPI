@@ -8,7 +8,7 @@ from pydantic import EmailStr
 from sqlalchemy.exc import IntegrityError
 
 from app.repository.user import UserRepository
-from app.config import Config, load_from_env
+from app.config import Config
 from app.utils import get_password_hash, verify_password
 from app.schemas import User, Token
 from app.exceptions import CredentialsException, ConflictException
@@ -27,9 +27,9 @@ class UserService:
 
 
 class AuthService:
-    def __init__(self, user_repository: UserRepository) -> None:
+    def __init__(self, user_repository: UserRepository, config: Config) -> None:
         self.user_repository = user_repository
-        self.config: Config = load_from_env()
+        self.config = config
         
     def create_token(self, user_id: uuid.UUID) -> Token:
         expire = datetime.now(timezone.utc) + timedelta(minutes=self.config.JWT_EXP)

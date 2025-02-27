@@ -1,12 +1,13 @@
+import logging
 import smtplib
 from email.message import EmailMessage
 
 from app.schemas import NotificationBody
 from app.exceptions import EmailSendException
 from app.config import Config
-from app.server import get_logger
 
-logger = get_logger()
+
+logger = logging.getLogger(__name__)
 
 
 class EmailClient:
@@ -40,6 +41,14 @@ class EmailClient:
         try:
             self.check_connect()
             self._server.send_message(msg=message, from_addr=self.config.EMAIL_NAME, to_addrs=body.email)
-        except (smtplib.SMTPException, ValueError) as err:
-            logger.info(err)
+            logger.info('Email message sent successfully: %s', body.email)
+        except (smtplib.SMTPException, ValueError):
+            logger.exception(
+                'Failed to send message to email: %(email)s recipient_id: %(r_id)s campaign_id: %(c_id)s', 
+                {
+                    'email': body.email,
+                    'r_id': body.recipient_id,
+                    'c_id': body.campaign_id,
+                }
+            )
             raise EmailSendException(body.campaign_id, body.email)

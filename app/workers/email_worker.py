@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 from aio_pika.abc import AbstractIncomingMessage
 from httpx import AsyncClient
@@ -12,6 +13,9 @@ from app.exceptions import EmailSendException
 from app.config import load_from_env
 
 
+logger = logging.getLogger('app.workers.email_worker')
+
+
 class EmailWorker:
     def __init__(self, broker_client: RabbitMQClient, email_client: EmailClient, api_client: ApiClient) -> None:
         self.broker_client = broker_client
@@ -19,6 +23,7 @@ class EmailWorker:
         self.api_client = api_client
         
     async def consume_message(self) -> None:
+        logger.info('EmailWorker has started successfully')
         await self.broker_client.connect()
         channel = self.broker_client.channel
         queue = await channel.declare_queue("email_queue", durable=True)
@@ -33,11 +38,21 @@ class EmailWorker:
             await self.api_client.update_notification_status(
                 body.recipient_id, body.campaign_id, StatusNotification.DELIVERED
             )
+            logger.info(
+                "Notification sent successfully for recipient_id=%s, campaign_id=%s",
+                body.recipient_id,
+                body.campaign_id
+            )
             await message.ack()
         except EmailSendException:
             await self.api_client.update_notification_status(
                 body.
                 recipient_id, body.campaign_id, StatusNotification.UNDELIVERED
+            )
+            logger.warning(
+                "Failed to send notification for recipient_id=%s, campaign_id=%s",
+                body.recipient_id,
+                body.campaign_id
             )
             await message.ack()
                 
