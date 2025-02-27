@@ -10,6 +10,9 @@ COPY uv.lock /app/
 COPY pyproject.toml /app/
 RUN uv sync --frozen --no-cache
 
+# copy log config
+COPY log_conf.yaml /app/
+
 # copy migrations
 COPY alembic.ini /app/
 COPY migrations /app/migrations

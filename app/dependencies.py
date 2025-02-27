@@ -11,10 +11,8 @@ from app.service.campaign import CampaignService
 from app.service.user import UserService, AuthService
 from app.db import get_db_session
 from app.schemas import User
+from app.config import load_from_env
 
-
-# def get_oauth2_scheme() -> OAuth2PasswordBearer:
-#     return OAuth2PasswordBearer(tokenUrl='login')
 
 get_oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 
@@ -45,7 +43,7 @@ def get_user_service(
 
 
 def get_auth_service(user_repository: Annotated[UserRepository, Depends(get_user_repository)]) -> AuthService:
-    return AuthService(user_repository)
+    return AuthService(user_repository, config=load_from_env())
 
 
 async def get_current_user(

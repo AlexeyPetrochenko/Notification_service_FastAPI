@@ -1,3 +1,6 @@
+import logging.config
+
+import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -60,3 +63,12 @@ def load_from_env() -> Config:
 
 def load_from_env_for_tests() -> Config:
     return TestConfig()  # type: ignore
+
+
+def setup_logging(path: str = "log_conf.yaml") -> None:
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+        logging.config.dictConfig(config)
+
+
+setup_logging()
