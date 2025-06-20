@@ -32,7 +32,7 @@ class AuthService:
         self.config = config
         
     def create_token(self, user_id: uuid.UUID) -> Token:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=self.config.JWT_EXP)
+        expire = datetime.now(timezone.utc) + timedelta(days=self.config.JWT_EXP)
         data = {"sub": str(user_id), "exp": expire}
         encoded_jwt = jwt.encode(payload=data, key=self.config.JWT_SECRET, algorithm=self.config.JWT_ALGORITHM)
         return Token(access_token=encoded_jwt, token_type='bearer')
